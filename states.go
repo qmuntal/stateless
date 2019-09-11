@@ -29,7 +29,7 @@ type actionBehaviour struct {
 
 func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
 	if a.Trigger == nil || *a.Trigger == transition.Trigger {
-		return a.Action(ctx, transition, args)
+		return a.Action(ctx, transition, args...)
 	}
 	return nil
 }
@@ -85,16 +85,16 @@ func (sr *stateRepresentation) state() State {
 }
 
 func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
-	_, ok = sr.FindHandler(ctx, trigger, args)
+	_, ok = sr.FindHandler(ctx, trigger, args...)
 	return
 }
 
 func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger, args ...interface{}) (handler triggerBehaviourResult, ok bool) {
-	handler, ok = sr.findHandler(ctx, trigger, args)
+	handler, ok = sr.findHandler(ctx, trigger, args...)
 	if ok || sr.Superstate == nil {
 		return
 	}
-	handler, ok = sr.Superstate.FindHandler(ctx, trigger, args)
+	handler, ok = sr.Superstate.FindHandler(ctx, trigger, args...)
 	return
 }
 
@@ -163,16 +163,16 @@ func (sr *stateRepresentation) Deactivate(ctx context.Context) (err error) {
 
 func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
 	if transition.IsReentry() {
-		err = sr.executeEntryActions(ctx, transition, args)
+		err = sr.executeEntryActions(ctx, transition, args...)
 		if err != nil {
 			err = sr.executeActivationActions(ctx)
 		}
 	} else if !sr.IncludeState(transition.Source) {
 		if sr.Superstate != nil {
-			err = sr.Superstate.Enter(ctx, transition, args)
+			err = sr.Superstate.Enter(ctx, transition, args...)
 		}
 		if err != nil {
-			err = sr.executeEntryActions(ctx, transition, args)
+			err = sr.executeEntryActions(ctx, transition, args...)
 			if err != nil {
 				err = sr.executeActivationActions(ctx)
 			}
@@ -210,7 +210,7 @@ func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Tr
 	var internalTransition *internalTriggerBehaviour
 	var stateRep superset = sr
 	for stateRep != nil {
-		if result, ok := stateRep.findHandler(ctx, transition.Trigger, args); ok {
+		if result, ok := stateRep.findHandler(ctx, transition.Trigger, args...); ok {
 			switch t := result.Handler.(type) {
 			case *internalTriggerBehaviour:
 				internalTransition = t
@@ -222,7 +222,7 @@ func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Tr
 	if internalTransition == nil {
 		panic("stateless: The configuration is incorrect, no action assigned to this internal transition.")
 	}
-	return internalTransition.Execute(ctx, transition, args)
+	return internalTransition.Execute(ctx, transition, args...)
 }
 
 func (sr *stateRepresentation) IncludeState(state State) bool {
@@ -259,13 +259,13 @@ func (sr *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []Trigger) {
 	for key, value := range sr.TriggerBehaviours {
 		for _, tb := range value {
-			if len(tb.UnmetGuardConditions(ctx, args)) == 0 {
+			if len(tb.UnmetGuardConditions(ctx, args...)) == 0 {
 				triggers = append(triggers, key)
 			}
 		}
 	}
 	if sr.Superstate != nil {
-		triggers = append(triggers, sr.Superstate.PermittedTriggers(ctx, args)...)
+		triggers = append(triggers, sr.Superstate.PermittedTriggers(ctx, args...)...)
 	}
 	return
 }
@@ -290,7 +290,7 @@ func (sr *stateRepresentation) executeDeactivationActions(ctx context.Context) e
 
 func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transition Transition, args ...interface{}) error {
 	for _, a := range sr.EntryActions {
-		if err := a.Execute(ctx, transition, args); err != nil {
+		if err := a.Execute(ctx, transition, args...); err != nil {
 			return err
 		}
 	}
@@ -299,7 +299,7 @@ func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transiti
 
 func (sr *stateRepresentation) executeExitActions(ctx context.Context, transition Transition, args ...interface{}) error {
 	for _, a := range sr.ExitActions {
-		if err := a.Execute(ctx, transition, args); err != nil {
+		if err := a.Execute(ctx, transition, args...); err != nil {
 			return err
 		}
 	}

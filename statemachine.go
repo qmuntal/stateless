@@ -98,7 +98,7 @@ func (sm *StateMachine) PermittedTriggers(ctx context.Context, args ...interface
 	if err != nil {
 		return nil, err
 	}
-	return sr.PermittedTriggers(ctx, args), nil
+	return sr.PermittedTriggers(ctx, args...), nil
 }
 
 // Activate activates current state. Actions associated with activating the currrent state will be invoked.
@@ -192,11 +192,11 @@ func (sm *StateMachine) stateRepresentation(state State) (sr *stateRepresentatio
 func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	switch sm.firingMode {
 	case FiringImmediate:
-		return sm.internalFireOne(ctx, trigger, args)
+		return sm.internalFireOne(ctx, trigger, args...)
 	case FiringQueued:
 		fallthrough
 	default:
-		return sm.internalFireQueued(ctx, trigger, args)
+		return sm.internalFireQueued(ctx, trigger, args...)
 	}
 }
 
@@ -206,14 +206,14 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	}
 	sm.firing = true
 	defer func() { sm.firing = false }()
-	err = sm.internalFireOne(ctx, trigger, args)
+	err = sm.internalFireOne(ctx, trigger, args...)
 	if err != nil {
 		return
 	}
 	for sm.eventQueue.Len() != 0 {
 		e := sm.eventQueue.Front()
 		et := e.Value.(queuedTrigger)
-		err = sm.internalFireOne(ctx, et.Trigger, et.Args)
+		err = sm.internalFireOne(ctx, et.Trigger, et.Args...)
 		if err != nil {
 			break
 		}
@@ -228,7 +228,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 		ok     bool
 	)
 	if config, ok = sm.triggerConfig[trigger]; ok {
-		config.validateParameters(args)
+		config.validateParameters(args...)
 	}
 	source, err := sm.State(ctx)
 	if err != nil {
@@ -236,7 +236,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	}
 	representativeState := sm.stateRepresentation(source)
 	var result triggerBehaviourResult
-	if result, ok = representativeState.findHandler(ctx, trigger, args); !ok {
+	if result, ok = representativeState.findHandler(ctx, trigger, args...); !ok {
 		sm.UnhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
 		return nil
 	}
@@ -245,29 +245,29 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 		// ignored
 	case *reentryTriggerBehaviour:
 		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
-		err = sm.handleReentryTrigger(ctx, representativeState, transition, args)
+		err = sm.handleReentryTrigger(ctx, representativeState, transition, args...)
 	case *dynamicTriggerBehaviour:
-		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args)
+		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
 			err = fmt.Errorf("stateless: Dynamic handler for trigger %d in state %d has failed", trigger, source)
 		} else {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
-			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args)
+			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}
 	case *transitioningTriggerBehaviour:
-		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args)
+		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
 			err = fmt.Errorf("stateless: Transition handler for trigger %d in state %d has failed", trigger, source)
 		} else {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
-			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args)
+			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}
 	case *internalTriggerBehaviour:
 		var sr *stateRepresentation
 		sr, err = sm.currentState(ctx)
 		if err == nil {
 			transition := Transition{Source: source, Destination: source, Trigger: trigger}
-			err = sr.InternalAction(ctx, transition, args)
+			err = sr.InternalAction(ctx, transition, args...)
 		}
 	default:
 		panic("stateless: State machine configuration incorrect, no handler for trigger.")
@@ -290,7 +290,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 		}
 	}
 	sm.onTransitionEvents.Invoke(ctx, transition)
-	representation, err = sm.enterState(ctx, newSr, transition, args)
+	representation, err = sm.enterState(ctx, newSr, transition, args...)
 	return sm.setState(ctx, representation.State)
 }
 
@@ -304,7 +304,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 
 	//Alert all listeners of state transition
 	sm.onTransitionEvents.Invoke(ctx, transition)
-	newSr, err = sm.enterState(ctx, newSr, transition, args)
+	newSr, err = sm.enterState(ctx, newSr, transition, args...)
 	if err != nil {
 		return
 	}
@@ -313,7 +313,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 
 func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) (*stateRepresentation, error) {
 	// Enter the new state
-	err := sr.Enter(ctx, transition, args)
+	err := sr.Enter(ctx, transition, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +328,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)
-		sr, err = sm.enterState(ctx, sr, initialTranslation, args)
+		sr, err = sm.enterState(ctx, sr, initialTranslation, args...)
 	}
 	return sr, err
 }

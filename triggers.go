@@ -5,8 +5,11 @@ import (
 	"reflect"
 )
 
+// GuardFunc defines a guard function.
+type GuardFunc func(context.Context, ...interface{}) bool
+
 type guardCondition struct {
-	Guard       func(context.Context, ...interface{}) bool
+	Guard       GuardFunc
 	Description InvocationInfo
 }
 
@@ -14,10 +17,21 @@ type transitionGuard struct {
 	Guards []guardCondition
 }
 
+func newtransitionGuard(guards ...Guard) transitionGuard {
+	tg := transitionGuard{Guards: make([]guardCondition, len(guards))}
+	for i, guard := range guards {
+		tg.Guards[i] = guardCondition{
+			Guard:       guard.Func,
+			Description: newInvocationInfo(guard, guard.Desc, false),
+		}
+	}
+	return tg
+}
+
 // GuardConditionsMet is true if all of the guard functions return true.
 func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
 	for _, guard := range t.Guards {
-		if !guard.Guard(ctx, args) {
+		if !guard.Guard(ctx, args...) {
 			return false
 		}
 	}
@@ -27,7 +41,7 @@ func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...interfac
 func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
 	unmet := make([]string, 0, len(t.Guards))
 	for _, guard := range t.Guards {
-		if !guard.Guard(ctx, args) {
+		if !guard.Guard(ctx, args...) {
 			unmet = append(unmet, guard.Description.Description)
 		}
 	}
@@ -51,11 +65,11 @@ func (t *baseTriggerBehaviour) GetTrigger() Trigger {
 }
 
 func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
-	return t.Guard.GuardConditionMet(ctx, args)
+	return t.Guard.GuardConditionMet(ctx, args...)
 }
 
 func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
-	return t.Guard.UnmetGuardConditions(ctx, args)
+	return t.Guard.UnmetGuardConditions(ctx, args...)
 }
 
 type ignoredTriggerBehaviour struct {
@@ -92,7 +106,7 @@ type dynamicTriggerBehaviour struct {
 
 func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _ State, args ...interface{}) (st State, ok bool) {
 	var err error
-	st, err = t.Destination(ctx, args)
+	st, err = t.Destination(ctx, args...)
 	if err == nil {
 		ok = true
 	}
@@ -109,7 +123,7 @@ func (t *internalTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, so
 }
 
 func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
-	return t.Action(ctx, transition, args)
+	return t.Action(ctx, transition, args...)
 }
 
 type triggerBehaviourResult struct {

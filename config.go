@@ -5,6 +5,12 @@ import (
 	"fmt"
 )
 
+// Guard defines a function that controls the transition from one state to another.
+type Guard struct {
+	Func GuardFunc
+	Desc string
+}
+
 // StateConfiguration is the configuration for a single state value.
 type StateConfiguration struct {
 	sm     *StateMachine
@@ -36,31 +42,68 @@ func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfigu
 	return sc
 }
 
-func (sc *StateConfiguration) enforceNotIdentityTransition(destination State) {
-	if destination == sc.sr.State {
+// Permit accept the specified trigger and transition to the destination state if the guard conditions are met (if any).
+func (sc *StateConfiguration) Permit(trigger Trigger, destinationState State, guards ...Guard) *StateConfiguration {
+	if destinationState == sc.sr.State {
 		panic("stateless: Permit() (and PermitIf()) require that the destination state is not equal to the source state. To accept a trigger without changing state, use either Ignore() or PermitReentry().")
 	}
-}
-
-func (sc *StateConfiguration) permit(trigger Trigger, destinationState State) {
 	sc.sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{
-		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger},
+		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
 		Destination:          destinationState,
 	})
+	return sc
 }
 
-func (sc *StateConfiguration) permitIf(trigger Trigger, destinationState State, guard transitionGuard) {
-	sc.sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{
-		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: guard},
-		Destination:          destinationState,
+// InternalTransition add an internal transition to the state machine.
+// An internal action does not cause the Exit and Entry actions to be triggered, and does not change the state of the state machine
+func (sc *StateConfiguration) InternalTransition(trigger Trigger, action func(context.Context, Transition, ...interface{}) error, guards ...Guard) *StateConfiguration {
+	sc.sr.AddTriggerBehaviour(&internalTriggerBehaviour{
+		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+		Action:               action,
 	})
+	return sc
 }
 
-func (sc *StateConfiguration) permitReentryIf(trigger Trigger, destinationState State, guard transitionGuard) {
+// PermitReentry accept the specified trigger, execute exit actions and re-execute entry actions.
+// Reentry behaves as though the configured state transitions to an identical sibling state.
+// Applies to the current state only. Will not re-execute superstate actions, or
+// cause actions to execute transitioning between super- and sub-states.
+func (sc *StateConfiguration) PermitReentry(trigger Trigger, guards ...Guard) *StateConfiguration {
 	sc.sr.AddTriggerBehaviour(&reentryTriggerBehaviour{
-		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: guard},
-		Destination:          destinationState,
+		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+		Destination:          sc.sr.State,
 	})
+	return sc
+}
+
+// Ignore the specified trigger when in the configured state, if the guards return true.
+func (sc *StateConfiguration) Ignore(trigger Trigger, guards ...Guard) *StateConfiguration {
+	sc.sr.AddTriggerBehaviour(&ignoredTriggerBehaviour{
+		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+	})
+	return sc
+}
+
+// PermitDynamic accept the specified trigger and transition to the destination state, calculated dynamically by the supplied function.
+func (sc *StateConfiguration) PermitDynamic(trigger Trigger, destinationSelector func(context.Context, ...interface{}) (State, error),
+	destinationSelectorDesc string, possibleStates []DynamicStateInfo, guards ...Guard) *StateConfiguration {
+	guardDescriptors := make([]InvocationInfo, len(guards))
+	for i, guard := range guards {
+		guardDescriptors[i] = newInvocationInfo(guard, guard.Desc, false)
+	}
+	sc.sr.AddTriggerBehaviour(&dynamicTriggerBehaviour{
+		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+		Destination:          destinationSelector,
+		TransitionInfo: DynamicTransitionInfo{
+			TransitionInfo: TransitionInfo{
+				Trigger:           TriggerInfo(trigger),
+				GuardDescriptions: guardDescriptors,
+			},
+			DestinationStateSelectorDescription: newInvocationInfo(destinationSelector, destinationSelectorDesc, false),
+			PossibleDestinationStates:           possibleStates,
+		},
+	})
+	return sc
 }
 
 func (sc *StateConfiguration) permitDynamicIf(trigger Trigger, destinationSelector func(context.Context, ...interface{}) (State, error), destinationSelectorDesc string, guard transitionGuard, possibleStates []DynamicStateInfo) {

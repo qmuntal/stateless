@@ -23,8 +23,9 @@ func (t *Transition) IsReentry() bool {
 }
 
 type actionBehaviour struct {
-	Action  func(ctx context.Context, transition Transition, args ...interface{}) error
-	Trigger *Trigger
+	Action      func(ctx context.Context, transition Transition, args ...interface{}) error
+	Description InvocationInfo
+	Trigger     *Trigger
 }
 
 func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
@@ -63,7 +64,7 @@ type stateRepresentation struct {
 	ExitActions             []actionBehaviour
 	ActivateActions         []actionBehaviourSteady
 	DeactivateActions       []actionBehaviourSteady
-	Substates               []stateRepresentation
+	Substates               []*stateRepresentation
 	TriggerBehaviours       map[Trigger][]triggerBehaviour
 	HasInitialState         bool
 }

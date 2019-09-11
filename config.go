@@ -106,21 +106,75 @@ func (sc *StateConfiguration) PermitDynamic(trigger Trigger, destinationSelector
 	return sc
 }
 
-func (sc *StateConfiguration) permitDynamicIf(trigger Trigger, destinationSelector func(context.Context, ...interface{}) (State, error), destinationSelectorDesc string, guard transitionGuard, possibleStates []DynamicStateInfo) {
-	guardDescriptors := make([]InvocationInfo, len(guard.Guards))
-	for i := range guard.Guards {
-		guardDescriptors[i] = guard.Guards[i].Description
-	}
-	sc.sr.AddTriggerBehaviour(&dynamicTriggerBehaviour{
-		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: guard},
-		Destination:          destinationSelector,
-		TransitionInfo: DynamicTransitionInfo{
-			TransitionInfo: TransitionInfo{
-				Trigger:           TriggerInfo(trigger),
-				GuardDescriptions: guardDescriptors,
-			},
-			DestinationStateSelectorDescription: newInvocationInfo(destinationSelector, destinationSelectorDesc, false),
-			PossibleDestinationStates:           possibleStates,
-		},
+// OnActive specify an action that will execute when activating the configured state.
+func (sc *StateConfiguration) OnActive(action func(context.Context) error, actionDescription string) *StateConfiguration {
+	sc.sr.ActivateActions = append(sc.sr.ActivateActions, actionBehaviourSteady{
+		Action: action,
 	})
+	return sc
+}
+
+// OnDeactivate specify an action that will execute when deactivating the configured state.
+func (sc *StateConfiguration) OnDeactivate(action func(context.Context) error, actionDescription string) *StateConfiguration {
+	sc.sr.DeactivateActions = append(sc.sr.DeactivateActions, actionBehaviourSteady{
+		Action: action,
+	})
+	return sc
+}
+
+// OnEntry specify an action that will execute when transitioning into the configured state.
+func (sc *StateConfiguration) OnEntry(action func(context.Context, Transition, ...interface{}) error, actionDescription string) *StateConfiguration {
+	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour{
+		Action:      action,
+		Description: newInvocationInfo(action, actionDescription, false),
+	})
+	return sc
+}
+
+// OnEntryFrom Specify an action that will execute when transitioning into the configured state from a specific trigger.
+func (sc *StateConfiguration) OnEntryFrom(trigger Trigger, action func(context.Context, Transition, ...interface{}) error, actionDescription string) *StateConfiguration {
+	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour{
+		Action:      action,
+		Description: newInvocationInfo(action, actionDescription, false),
+		Trigger:     &trigger,
+	})
+	return sc
+}
+
+// OnExit specify an action that will execute when transitioning from the configured state.
+func (sc *StateConfiguration) OnExit(action func(context.Context, Transition, ...interface{}) error, actionDescription string) *StateConfiguration {
+	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour{
+		Action:      action,
+		Description: newInvocationInfo(action, actionDescription, false),
+	})
+	return sc
+}
+
+func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
+	state := sc.sr.State
+	// Check for accidental identical cyclic configuration
+	if state == superstate {
+		panic(fmt.Sprintf("stateless: Configuring %d as a substate of %d creates an illegal cyclic configuration.", state, superstate))
+	}
+
+	// Check for accidental identical nested cyclic configuration
+	supersets := make(map[State]struct{})
+	var empty struct{}
+	// Build list of super states and check for
+
+	activeSc := sc.lookup(superstate)
+	for activeSc.Superstate != nil {
+		// Check if superstate is already added to hashset
+		if _, ok := supersets[activeSc.Superstate.state()]; ok {
+			panic(fmt.Sprintf("stateless: Configuring %d as a substate of %d creates an illegal nested cyclic configuration.", state, supersets))
+		}
+		supersets[activeSc.Superstate.state()] = empty
+		activeSc = sc.lookup(activeSc.Superstate.state())
+	}
+
+	// The check was OK, we can add this
+	superRepresentation := sc.lookup(superstate)
+	sc.sr.Superstate = superRepresentation
+	superRepresentation.Substates = append(superRepresentation.Substates, sc.sr)
+	return sc
 }

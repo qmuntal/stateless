@@ -9,6 +9,7 @@ type stateReference struct {
 	State State
 }
 
+// Transition describes a state transition.
 type Transition struct {
 	Source      State
 	Destination State
@@ -248,9 +249,8 @@ func (r *stateRepresentation) IsIncludedInState(state State) bool {
 
 func (r *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 	trigger := tb.GetTrigger()
-	if allowed, ok := r.TriggerBehaviours[trigger]; !ok {
-		allowed = []triggerBehaviour{tb}
-		r.TriggerBehaviours[trigger] = allowed
+	if _, ok := r.TriggerBehaviours[trigger]; !ok {
+		r.TriggerBehaviours[trigger] = []triggerBehaviour{tb}
 	}
 	r.TriggerBehaviours[trigger] = append(r.TriggerBehaviours[trigger], tb)
 

@@ -247,16 +247,12 @@ func (r *stateRepresentation) IsIncludedInState(state State) bool {
 }
 
 func (r *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
-	var (
-		allowed []triggerBehaviour
-		ok      bool
-	)
 	trigger := tb.GetTrigger()
-	if allowed, ok = r.TriggerBehaviours[trigger]; !ok {
+	if allowed, ok := r.TriggerBehaviours[trigger]; !ok {
 		allowed = []triggerBehaviour{tb}
 		r.TriggerBehaviours[trigger] = allowed
 	}
-	allowed = append(allowed, tb)
+	r.TriggerBehaviours[trigger] = append(r.TriggerBehaviours[trigger], tb)
 
 }
 

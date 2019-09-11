@@ -17,7 +17,7 @@ type Trigger = int
 type FiringMode uint8
 
 const (
-	// Fire-ing mode shoud be used when run-to-completion is required. This is the recommended mode.
+	// FiringQueued mode shoud be used when run-to-completion is required. This is the recommended mode.
 	FiringQueued FiringMode = iota
 	// FiringImmediate should be used when the queing of trigger events are not needed.
 	// Care must be taken when using this mode, as there is no run-to-completion guaranteed.
@@ -27,6 +27,7 @@ const (
 // UnhandledTriggerActionFunc defines a function that will be called when a trigger is not handled.
 type UnhandledTriggerActionFunc func(ctx context.Context, state State, trigger Trigger, unmetGuards []string)
 
+// DefaultUnhandledTriggerAction is the default unhandled trigger action.
 func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigger, unmetGuards []string) {
 	if len(unmetGuards) != 0 {
 		panic(fmt.Sprintf("stateless: Trigger '%d' is valid for transition from state '%d' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards))
@@ -160,6 +161,8 @@ func (sm *StateMachine) Fire(ctx context.Context, trigger Trigger) error {
 	return sm.internalFire(ctx, trigger)
 }
 
+// OnTransitioned registers a callback that will be invoked every time the statemachine
+// transitions from one state into another.
 func (sm *StateMachine) OnTransitioned(onTransitionAction func(context.Context, Transition)) {
 	sm.onTransitionEvents = append(sm.onTransitionEvents, onTransitionAction)
 }
@@ -260,7 +263,8 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args)
 		}
 	case *internalTriggerBehaviour:
-		sr, err := sm.currentState(ctx)
+		var sr *stateRepresentation
+		sr, err = sm.currentState(ctx)
 		if err == nil {
 			transition := Transition{Source: source, Destination: source, Trigger: trigger}
 			err = sr.InternalAction(ctx, transition, args)

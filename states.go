@@ -75,34 +75,34 @@ func newstateRepresentation(state State) *stateRepresentation {
 	}
 }
 
-func (r *stateRepresentation) SetInitialState(state State) {
-	r.State = state
-	r.HasInitialState = true
+func (sr *stateRepresentation) SetInitialTransition(state State) {
+	sr.InitialTransitionTarget = state
+	sr.HasInitialState = true
 }
 
-func (r *stateRepresentation) state() State {
-	return r.State
+func (sr *stateRepresentation) state() State {
+	return sr.State
 }
 
-func (r *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
-	_, ok = r.FindHandler(ctx, trigger, args)
+func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
+	_, ok = sr.FindHandler(ctx, trigger, args)
 	return
 }
 
-func (r *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger, args ...interface{}) (handler triggerBehaviourResult, ok bool) {
-	handler, ok = r.findHandler(ctx, trigger, args)
-	if ok || r.Superstate == nil {
+func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger, args ...interface{}) (handler triggerBehaviourResult, ok bool) {
+	handler, ok = sr.findHandler(ctx, trigger, args)
+	if ok || sr.Superstate == nil {
 		return
 	}
-	handler, ok = r.Superstate.FindHandler(ctx, trigger, args)
+	handler, ok = sr.Superstate.FindHandler(ctx, trigger, args)
 	return
 }
 
-func (r *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, args ...interface{}) (result triggerBehaviourResult, ok bool) {
+func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, args ...interface{}) (result triggerBehaviourResult, ok bool) {
 	var (
 		possibleBehaviours []triggerBehaviour
 	)
-	if possibleBehaviours, ok = r.TriggerBehaviours[trigger]; !ok {
+	if possibleBehaviours, ok = sr.TriggerBehaviours[trigger]; !ok {
 		return
 	}
 	allResults := make([]triggerBehaviourResult, 0, len(possibleBehaviours))
@@ -122,7 +122,7 @@ func (r *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, 
 		}
 	}
 	if len(metResults) > 1 {
-		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%d' for trigger '%d'. Guard clauses must be mutually exclusive.", r.State, trigger))
+		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%d' for trigger '%d'. Guard clauses must be mutually exclusive.", sr.State, trigger))
 	}
 	if len(metResults) == 1 {
 		result, ok = metResults[0], true
@@ -132,83 +132,83 @@ func (r *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, 
 	return
 }
 
-func (r *stateRepresentation) Activate(ctx context.Context) (err error) {
-	if r.Superstate != nil {
-		err = r.Superstate.Activate(ctx)
+func (sr *stateRepresentation) Activate(ctx context.Context) (err error) {
+	if sr.Superstate != nil {
+		err = sr.Superstate.Activate(ctx)
 	}
-	if r.Active || err != nil {
+	if sr.Active || err != nil {
 		return
 	}
-	err = r.executeActivationActions(ctx)
+	err = sr.executeActivationActions(ctx)
 	if err != nil {
-		r.Active = true
+		sr.Active = true
 	}
 	return
 }
 
-func (r *stateRepresentation) Deactivate(ctx context.Context) (err error) {
-	if !r.Active {
+func (sr *stateRepresentation) Deactivate(ctx context.Context) (err error) {
+	if !sr.Active {
 		return
 	}
-	err = r.executeDeactivationActions(ctx)
+	err = sr.executeDeactivationActions(ctx)
 	if err != nil {
 		return
 	}
-	r.Active = false
-	if r.Superstate != nil {
-		err = r.Superstate.Deactivate(ctx)
+	sr.Active = false
+	if sr.Superstate != nil {
+		err = sr.Superstate.Deactivate(ctx)
 	}
 	return
 }
 
-func (r *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
+func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
 	if transition.IsReentry() {
-		err = r.executeEntryActions(ctx, transition, args)
+		err = sr.executeEntryActions(ctx, transition, args)
 		if err != nil {
-			err = r.executeActivationActions(ctx)
+			err = sr.executeActivationActions(ctx)
 		}
-	} else if !r.IncludeState(transition.Source) {
-		if r.Superstate != nil {
-			err = r.Superstate.Enter(ctx, transition, args)
+	} else if !sr.IncludeState(transition.Source) {
+		if sr.Superstate != nil {
+			err = sr.Superstate.Enter(ctx, transition, args)
 		}
 		if err != nil {
-			err = r.executeEntryActions(ctx, transition, args)
+			err = sr.executeEntryActions(ctx, transition, args)
 			if err != nil {
-				err = r.executeActivationActions(ctx)
+				err = sr.executeActivationActions(ctx)
 			}
 		}
 	}
 	return
 }
 
-func (r *stateRepresentation) Exit(ctx context.Context, transition Transition) (newTransition Transition, err error) {
+func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) (newTransition Transition, err error) {
 	newTransition = transition
 	if transition.IsReentry() {
-		err = r.executeDeactivationActions(ctx)
+		err = sr.executeDeactivationActions(ctx)
 		if err != nil {
-			err = r.executeExitActions(ctx, transition)
+			err = sr.executeExitActions(ctx, transition)
 		}
-	} else if !r.IncludeState(transition.Destination) {
-		err = r.executeDeactivationActions(ctx)
+	} else if !sr.IncludeState(transition.Destination) {
+		err = sr.executeDeactivationActions(ctx)
 		if err != nil {
-			err = r.executeExitActions(ctx, transition)
+			err = sr.executeExitActions(ctx, transition)
 		}
-		if err != nil && r.Superstate != nil {
-			if r.IsIncludedInState(transition.Destination) {
-				if r.Superstate.state() != transition.Destination {
-					newTransition, err = r.Superstate.Exit(ctx, transition)
+		if err != nil && sr.Superstate != nil {
+			if sr.IsIncludedInState(transition.Destination) {
+				if sr.Superstate.state() != transition.Destination {
+					newTransition, err = sr.Superstate.Exit(ctx, transition)
 				}
 			} else {
-				newTransition, err = r.Superstate.Exit(ctx, transition)
+				newTransition, err = sr.Superstate.Exit(ctx, transition)
 			}
 		}
 	}
 	return
 }
 
-func (r *stateRepresentation) InternalAction(ctx context.Context, transition Transition, args ...interface{}) error {
+func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Transition, args ...interface{}) error {
 	var internalTransition *internalTriggerBehaviour
-	var stateRep superset = r
+	var stateRep superset = sr
 	for stateRep != nil {
 		if result, ok := stateRep.findHandler(ctx, transition.Trigger, args); ok {
 			switch t := result.Handler.(type) {
@@ -217,7 +217,7 @@ func (r *stateRepresentation) InternalAction(ctx context.Context, transition Tra
 				break
 			}
 		}
-		stateRep = r.Superstate
+		stateRep = sr.Superstate
 	}
 	if internalTransition == nil {
 		panic("stateless: The configuration is incorrect, no action assigned to this internal transition.")
@@ -225,11 +225,11 @@ func (r *stateRepresentation) InternalAction(ctx context.Context, transition Tra
 	return internalTransition.Execute(ctx, transition, args)
 }
 
-func (r *stateRepresentation) IncludeState(state State) bool {
-	if state == r.State {
+func (sr *stateRepresentation) IncludeState(state State) bool {
+	if state == sr.State {
 		return true
 	}
-	for _, substate := range r.Substates {
+	for _, substate := range sr.Substates {
 		if substate.IncludeState(state) {
 			return true
 		}
@@ -237,41 +237,41 @@ func (r *stateRepresentation) IncludeState(state State) bool {
 	return false
 }
 
-func (r *stateRepresentation) IsIncludedInState(state State) bool {
-	if state == r.State {
+func (sr *stateRepresentation) IsIncludedInState(state State) bool {
+	if state == sr.State {
 		return true
 	}
-	if r.Superstate != nil {
-		return r.Superstate.IsIncludedInState(state)
+	if sr.Superstate != nil {
+		return sr.Superstate.IsIncludedInState(state)
 	}
 	return false
 }
 
-func (r *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
+func (sr *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 	trigger := tb.GetTrigger()
-	if _, ok := r.TriggerBehaviours[trigger]; !ok {
-		r.TriggerBehaviours[trigger] = []triggerBehaviour{tb}
+	if _, ok := sr.TriggerBehaviours[trigger]; !ok {
+		sr.TriggerBehaviours[trigger] = []triggerBehaviour{tb}
 	}
-	r.TriggerBehaviours[trigger] = append(r.TriggerBehaviours[trigger], tb)
+	sr.TriggerBehaviours[trigger] = append(sr.TriggerBehaviours[trigger], tb)
 
 }
 
-func (r *stateRepresentation) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []Trigger) {
-	for key, value := range r.TriggerBehaviours {
+func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []Trigger) {
+	for key, value := range sr.TriggerBehaviours {
 		for _, tb := range value {
 			if len(tb.UnmetGuardConditions(ctx, args)) == 0 {
 				triggers = append(triggers, key)
 			}
 		}
 	}
-	if r.Superstate != nil {
-		triggers = append(triggers, r.Superstate.PermittedTriggers(ctx, args)...)
+	if sr.Superstate != nil {
+		triggers = append(triggers, sr.Superstate.PermittedTriggers(ctx, args)...)
 	}
 	return
 }
 
-func (r *stateRepresentation) executeActivationActions(ctx context.Context) error {
-	for _, a := range r.ActivateActions {
+func (sr *stateRepresentation) executeActivationActions(ctx context.Context) error {
+	for _, a := range sr.ActivateActions {
 		if err := a.Execute(ctx); err != nil {
 			return err
 		}
@@ -279,8 +279,8 @@ func (r *stateRepresentation) executeActivationActions(ctx context.Context) erro
 	return nil
 }
 
-func (r *stateRepresentation) executeDeactivationActions(ctx context.Context) error {
-	for _, a := range r.DeactivateActions {
+func (sr *stateRepresentation) executeDeactivationActions(ctx context.Context) error {
+	for _, a := range sr.DeactivateActions {
 		if err := a.Execute(ctx); err != nil {
 			return err
 		}
@@ -288,8 +288,8 @@ func (r *stateRepresentation) executeDeactivationActions(ctx context.Context) er
 	return nil
 }
 
-func (r *stateRepresentation) executeEntryActions(ctx context.Context, transition Transition, args ...interface{}) error {
-	for _, a := range r.EntryActions {
+func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transition Transition, args ...interface{}) error {
+	for _, a := range sr.EntryActions {
 		if err := a.Execute(ctx, transition, args); err != nil {
 			return err
 		}
@@ -297,8 +297,8 @@ func (r *stateRepresentation) executeEntryActions(ctx context.Context, transitio
 	return nil
 }
 
-func (r *stateRepresentation) executeExitActions(ctx context.Context, transition Transition, args ...interface{}) error {
-	for _, a := range r.ExitActions {
+func (sr *stateRepresentation) executeExitActions(ctx context.Context, transition Transition, args ...interface{}) error {
+	for _, a := range sr.ExitActions {
 		if err := a.Execute(ctx, transition, args); err != nil {
 			return err
 		}

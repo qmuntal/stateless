@@ -3,36 +3,11 @@ package stateless
 import (
 	"context"
 	"reflect"
-	"runtime"
 )
-
-type invocationInfo struct {
-	Method      string
-	Description string
-	IsAsync     bool
-}
-
-func newinvocationInfo(method interface{}, description string, isAsync bool) invocationInfo {
-	return invocationInfo{
-		Method:      runtime.FuncForPC(reflect.ValueOf(method).Pointer()).Name(),
-		Description: description,
-		IsAsync:     isAsync,
-	}
-}
-
-func (inv invocationInfo) String() string {
-	if inv.Description != "" {
-		return inv.Description
-	}
-	if inv.Method != "" {
-		return inv.Method
-	}
-	return "<nil>"
-}
 
 type guardCondition struct {
 	Guard       func(context.Context, ...interface{}) bool
-	Description invocationInfo
+	Description InvocationInfo
 }
 
 type transitionGuard struct {
@@ -111,7 +86,8 @@ func (t *transitioningTriggerBehaviour) ResultsInTransitionFrom(_ context.Contex
 
 type dynamicTriggerBehaviour struct {
 	baseTriggerBehaviour
-	Destination func(context.Context, ...interface{}) (State, error)
+	Destination    func(context.Context, ...interface{}) (State, error)
+	TransitionInfo DynamicTransitionInfo
 }
 
 func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _ State, args ...interface{}) (st State, ok bool) {

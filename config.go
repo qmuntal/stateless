@@ -55,7 +55,7 @@ func (sc *StateConfiguration) Permit(trigger Trigger, destinationState State, gu
 }
 
 // InternalTransition add an internal transition to the state machine.
-// An internal action does not cause the Exit and Entry actions to be triggered, and does not change the state of the state machine
+// An internal action does not cause the Exit and Entry actions to be triggered, and does not change the state of the state machine.
 func (sc *StateConfiguration) InternalTransition(trigger Trigger, action ActionFunc, guards ...GuardFunc) *StateConfiguration {
 	sc.sr.AddTriggerBehaviour(&internalTriggerBehaviour{
 		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},

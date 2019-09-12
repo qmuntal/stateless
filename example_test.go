@@ -34,31 +34,42 @@ func Example() {
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
-	phoneCall.Configure(stateOffHook).Permit(triggerCallDialed, stateRinging)
+	phoneCall.Configure(stateOffHook).
+		Permit(triggerCallDialed, stateRinging)
 
-	phoneCall.Configure(stateRinging).OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
-		onDialed(args[0].(string))
-		return nil
-	}).Permit(triggerCallConnected, stateConnected)
+	phoneCall.Configure(stateRinging).
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+			onDialed(args[0].(string))
+			return nil
+		}).
+		Permit(triggerCallConnected, stateConnected)
 
-	phoneCall.Configure(stateConnected).OnEntry(func(_ context.Context, _ ...interface{}) error {
-		startCallTimer()
-		return nil
-	}).OnExit(func(_ context.Context, _ ...interface{}) error {
-		stopCallTimer()
-		return nil
-	}).InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
-		onMute()
-		return nil
-	}).InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
-		onUnmute()
-		return nil
-	}).InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
-		onSetVolume(args[0].(int))
-		return nil
-	}).Permit(triggerLeftMessage, stateOffHook).Permit(triggerPlacedOnHold, stateOnHold)
+	phoneCall.Configure(stateConnected).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			startCallTimer()
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			stopCallTimer()
+			return nil
+		}).
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+			onMute()
+			return nil
+		}).
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+			onUnmute()
+			return nil
+		}).
+		InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
+			onSetVolume(args[0].(int))
+			return nil
+		}).
+		Permit(triggerLeftMessage, stateOffHook).
+		Permit(triggerPlacedOnHold, stateOnHold)
 
-	phoneCall.Configure(stateOnHold).SubstateOf(stateConnected).
+	phoneCall.Configure(stateOnHold).
+		SubstateOf(stateConnected).
 		Permit(triggerTakenOffHold, stateConnected).
 		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 

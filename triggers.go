@@ -91,8 +91,8 @@ type ignoredTriggerBehaviour struct {
 	baseTriggerBehaviour
 }
 
-func (t *ignoredTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, _ State, _ ...interface{}) (State, bool) {
-	return 0, false
+func (t *ignoredTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, _ State, _ ...interface{}) (st State, ok bool) {
+	return
 }
 
 type reentryTriggerBehaviour struct {

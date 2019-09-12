@@ -9,19 +9,6 @@ type stateReference struct {
 	State State
 }
 
-// Transition describes a state transition.
-type Transition struct {
-	Source      State
-	Destination State
-	Trigger     State
-}
-
-// IsReentry returns true if the transition is a re-entry,
-// i.e. the identity transition.
-func (t *Transition) IsReentry() bool {
-	return t.Source == t.Destination
-}
-
 type actionBehaviour struct {
 	Action      func(ctx context.Context, transition Transition, args ...interface{}) error
 	Description invocationInfo
@@ -52,6 +39,7 @@ type superset interface {
 	IsIncludedInState(State) bool
 	PermittedTriggers(context.Context, ...interface{}) []Trigger
 	state() State
+	superstate() superset
 	findHandler(context.Context, Trigger, ...interface{}) (triggerBehaviourResult, bool)
 }
 
@@ -83,6 +71,10 @@ func (sr *stateRepresentation) SetInitialTransition(state State) {
 
 func (sr *stateRepresentation) state() State {
 	return sr.State
+}
+
+func (sr *stateRepresentation) superstate() superset {
+	return sr.Superstate
 }
 
 func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
@@ -123,7 +115,7 @@ func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger,
 		}
 	}
 	if len(metResults) > 1 {
-		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%d' for trigger '%d'. Guard clauses must be mutually exclusive.", sr.State, trigger))
+		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%s' for trigger '%s'. Guard clauses must be mutually exclusive.", sr.State, trigger))
 	}
 	if len(metResults) == 1 {
 		result, ok = metResults[0], true
@@ -141,7 +133,7 @@ func (sr *stateRepresentation) Activate(ctx context.Context) (err error) {
 		return
 	}
 	err = sr.executeActivationActions(ctx)
-	if err != nil {
+	if err == nil {
 		sr.Active = true
 	}
 	return
@@ -165,16 +157,16 @@ func (sr *stateRepresentation) Deactivate(ctx context.Context) (err error) {
 func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
 	if transition.IsReentry() {
 		err = sr.executeEntryActions(ctx, transition, args...)
-		if err != nil {
+		if err == nil {
 			err = sr.executeActivationActions(ctx)
 		}
 	} else if !sr.IncludeState(transition.Source) {
 		if sr.Superstate != nil {
 			err = sr.Superstate.Enter(ctx, transition, args...)
 		}
-		if err != nil {
+		if err == nil {
 			err = sr.executeEntryActions(ctx, transition, args...)
-			if err != nil {
+			if err == nil {
 				err = sr.executeActivationActions(ctx)
 			}
 		}
@@ -186,15 +178,15 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) 
 	newTransition = transition
 	if transition.IsReentry() {
 		err = sr.executeDeactivationActions(ctx)
-		if err != nil {
+		if err == nil {
 			err = sr.executeExitActions(ctx, transition)
 		}
 	} else if !sr.IncludeState(transition.Destination) {
 		err = sr.executeDeactivationActions(ctx)
-		if err != nil {
+		if err == nil {
 			err = sr.executeExitActions(ctx, transition)
 		}
-		if err != nil && sr.Superstate != nil {
+		if err == nil && sr.Superstate != nil {
 			if sr.IsIncludedInState(transition.Destination) {
 				if sr.Superstate.state() != transition.Destination {
 					newTransition, err = sr.Superstate.Exit(ctx, transition)
@@ -218,7 +210,7 @@ func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Tr
 				break
 			}
 		}
-		stateRep = sr.Superstate
+		stateRep = stateRep.superstate()
 	}
 	if internalTransition == nil {
 		panic("stateless: The configuration is incorrect, no action assigned to this internal transition.")
@@ -250,9 +242,6 @@ func (sr *stateRepresentation) IsIncludedInState(state State) bool {
 
 func (sr *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 	trigger := tb.GetTrigger()
-	if _, ok := sr.TriggerBehaviours[trigger]; !ok {
-		sr.TriggerBehaviours[trigger] = []triggerBehaviour{tb}
-	}
 	sr.TriggerBehaviours[trigger] = append(sr.TriggerBehaviours[trigger], tb)
 
 }

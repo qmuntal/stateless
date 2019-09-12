@@ -8,10 +8,10 @@ import (
 )
 
 // State is used to to represent the possible machine states.
-type State = int
+type State = string
 
 // Trigger is used to represent the triggers that cause state transitions.
-type Trigger = int
+type Trigger = string
 
 // FiringMode enumerate the different modes used when Fire-ing a trigger.
 type FiringMode uint8
@@ -24,15 +24,28 @@ const (
 	FiringImmediate
 )
 
+// Transition describes a state transition.
+type Transition struct {
+	Source      State
+	Destination State
+	Trigger     State
+}
+
+// IsReentry returns true if the transition is a re-entry,
+// i.e. the identity transition.
+func (t *Transition) IsReentry() bool {
+	return t.Source == t.Destination
+}
+
 // UnhandledTriggerActionFunc defines a function that will be called when a trigger is not handled.
 type UnhandledTriggerActionFunc func(ctx context.Context, state State, trigger Trigger, unmetGuards []string)
 
 // DefaultUnhandledTriggerAction is the default unhandled trigger action.
 func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigger, unmetGuards []string) {
 	if len(unmetGuards) != 0 {
-		panic(fmt.Sprintf("stateless: Trigger '%d' is valid for transition from state '%d' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards))
+		panic(fmt.Sprintf("stateless: Trigger '%s' is valid for transition from state '%s' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards))
 	}
-	panic(fmt.Sprintf("stateless: No valid leaving transitions are permitted from state '%d' for trigger '%d'. Consider ignoring the trigger.", state, trigger))
+	panic(fmt.Sprintf("stateless: No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.", state, trigger))
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
@@ -60,13 +73,13 @@ func newStateMachine() *StateMachine {
 	}
 }
 
-// NewStateMachine returns a queued state machine in state 0.
-func NewStateMachine() *StateMachine {
-	return NewStateMachineWithState(0, FiringQueued)
+// NewStateMachine returns a queued state machine.
+func NewStateMachine(initialState State) *StateMachine {
+	return NewStateMachineWithMode(initialState, FiringQueued)
 }
 
-// NewStateMachineWithState returns a state machine.
-func NewStateMachineWithState(initialState State, firingMode FiringMode) *StateMachine {
+// NewStateMachineWithMode returns a state machine with the desired firing mode
+func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMachine {
 	sm := newStateMachine()
 	reference := &stateReference{State: initialState}
 	sm.stateAccessor = func(_ context.Context) (State, error) { return reference.State, nil }
@@ -90,6 +103,17 @@ func NewStateMachineWithExternalStorage(stateAccessor func(context.Context) (Sta
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
 	return sm.stateAccessor(ctx)
+}
+
+// MustState returns the current state without the error.
+// Use this only if you are sure that your machine configuration
+// does not return any error.
+func (sm *StateMachine) MustState(ctx context.Context) State {
+	st, err := sm.stateAccessor(ctx)
+	if err != nil {
+		panic(err)
+	}
+	return st
 }
 
 // PermittedTriggers returns the currently-permissible trigger values.
@@ -143,28 +167,32 @@ func (sm *StateMachine) CanFire(ctx context.Context, trigger Trigger) (bool, err
 }
 
 // SetTriggerParameters specify the arguments that must be supplied when a specific trigger is fired.
-// The returned object can be passed to the Fire() method in order to fire the parameterised trigger.
-func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes []reflect.Type) TriggerWithParameters {
+func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...reflect.Type) {
 	config := TriggerWithParameters{Trigger: trigger, ArgumentTypes: argumentTypes}
 	if _, ok := sm.triggerConfig[config.Trigger]; ok {
-		panic(fmt.Sprintf("stateless: Parameters for the trigger '%d' have already been configured.", trigger))
+		panic(fmt.Sprintf("stateless: Parameters for the trigger '%s' have already been configured.", trigger))
 	}
 	sm.triggerConfig[trigger] = config
-	return config
 }
 
 // Fire Transition from the current state via the specified trigger.
 // The target state is determined by the configuration of the current state.
 // Actions associated with leaving the current state and entering the new one
 // will be invoked.
-func (sm *StateMachine) Fire(ctx context.Context, trigger Trigger) error {
-	return sm.internalFire(ctx, trigger)
+func (sm *StateMachine) Fire(ctx context.Context, trigger Trigger, args ...interface{}) error {
+	return sm.internalFire(ctx, trigger, args...)
 }
 
 // OnTransitioned registers a callback that will be invoked every time the statemachine
 // transitions from one state into another.
 func (sm *StateMachine) OnTransitioned(onTransitionAction func(context.Context, Transition)) {
 	sm.onTransitionEvents = append(sm.onTransitionEvents, onTransitionAction)
+}
+
+// Configure begin configuration of the entry/exit actions and allowed transitions
+// when the state machine is in a particular state.
+func (sm *StateMachine) Configure(state State) *StateConfiguration {
+	return &StateConfiguration{sm: sm, sr: sm.stateRepresentation(state), lookup: sm.stateRepresentation}
 }
 
 func (sm *StateMachine) setState(ctx context.Context, state State) error {
@@ -236,7 +264,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	}
 	representativeState := sm.stateRepresentation(source)
 	var result triggerBehaviourResult
-	if result, ok = representativeState.findHandler(ctx, trigger, args...); !ok {
+	if result, ok = representativeState.FindHandler(ctx, trigger, args...); !ok {
 		sm.UnhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
 		return nil
 	}
@@ -249,7 +277,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	case *dynamicTriggerBehaviour:
 		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
-			err = fmt.Errorf("stateless: Dynamic handler for trigger %d in state %d has failed", trigger, source)
+			err = fmt.Errorf("stateless: Dynamic handler for trigger %s in state %s has failed", trigger, source)
 		} else {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
@@ -257,7 +285,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	case *transitioningTriggerBehaviour:
 		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
-			err = fmt.Errorf("stateless: Transition handler for trigger %d in state %d has failed", trigger, source)
+			err = fmt.Errorf("stateless: Transition handler for trigger %s in state %s has failed", trigger, source)
 		} else {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
@@ -323,7 +351,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 			// Verify that the target state is a substate
 			// Check if state has substate(s), and if an initial transition(s) has been set up.
 			if substate.State == sr.InitialTransitionTarget {
-				panic(fmt.Sprintf("stateless: The target (%d) for the initial transition is not a substate.", sr.InitialTransitionTarget))
+				panic(fmt.Sprintf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget))
 			}
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger}

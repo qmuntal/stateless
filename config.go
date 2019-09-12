@@ -6,10 +6,10 @@ import (
 )
 
 // ActionFunc describes a generic action function.
-type ActionFunc func(context.Context, Transition, ...interface{}) error
+type ActionFunc = func(context.Context, Transition, ...interface{}) error
 
 // GuardFunc defines a generic guard function.
-type GuardFunc func(context.Context, ...interface{}) bool
+type GuardFunc = func(context.Context, ...interface{}) bool
 
 // StateConfiguration is the configuration for a single state value.
 type StateConfiguration struct {
@@ -33,7 +33,7 @@ func (sc *StateConfiguration) Machine() *StateMachine {
 // and enter the target state.
 func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfiguration {
 	if sc.sr.HasInitialState {
-		panic(fmt.Sprintf("stateless: This state has already been configured with an inital transition (%d).", sc.sr.InitialTransitionTarget))
+		panic(fmt.Sprintf("stateless: This state has already been configured with an inital transition (%s).", sc.sr.InitialTransitionTarget))
 	}
 	if targetState == sc.State() {
 		panic("stateless: Setting the current state as the target destination state is not allowed.")
@@ -146,7 +146,7 @@ func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	state := sc.sr.State
 	// Check for accidental identical cyclic configuration
 	if state == superstate {
-		panic(fmt.Sprintf("stateless: Configuring %d as a substate of %d creates an illegal cyclic configuration.", state, superstate))
+		panic(fmt.Sprintf("stateless: Configuring %s as a substate of %s creates an illegal cyclic configuration.", state, superstate))
 	}
 
 	// Check for accidental identical nested cyclic configuration
@@ -158,7 +158,7 @@ func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	for activeSc.Superstate != nil {
 		// Check if superstate is already added to hashset
 		if _, ok := supersets[activeSc.Superstate.state()]; ok {
-			panic(fmt.Sprintf("stateless: Configuring %d as a substate of %d creates an illegal nested cyclic configuration.", state, supersets))
+			panic(fmt.Sprintf("stateless: Configuring %s as a substate of %s creates an illegal nested cyclic configuration.", state, supersets))
 		}
 		supersets[activeSc.Superstate.state()] = empty
 		activeSc = sc.lookup(activeSc.Superstate.state())

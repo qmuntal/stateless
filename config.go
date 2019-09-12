@@ -46,7 +46,7 @@ func (sc *StateConfiguration) Machine() *StateMachine {
 // and enter the target state.
 func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfiguration {
 	if sc.sr.HasInitialState {
-		panic(fmt.Sprintf("stateless: This state has already been configured with an inital transition (%s).", sc.sr.InitialTransitionTarget))
+		panic(fmt.Sprintf("stateless: This state has already been configured with an initial transition (%s).", sc.sr.InitialTransitionTarget))
 	}
 	if targetState == sc.State() {
 		panic("stateless: Setting the current state as the target destination state is not allowed.")

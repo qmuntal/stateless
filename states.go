@@ -24,7 +24,7 @@ func (t *Transition) IsReentry() bool {
 
 type actionBehaviour struct {
 	Action      func(ctx context.Context, transition Transition, args ...interface{}) error
-	Description InvocationInfo
+	Description invocationInfo
 	Trigger     *Trigger
 }
 

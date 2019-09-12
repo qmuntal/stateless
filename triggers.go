@@ -3,26 +3,41 @@ package stateless
 import (
 	"context"
 	"reflect"
+	"runtime"
 )
 
-// GuardFunc defines a guard function.
-type GuardFunc func(context.Context, ...interface{}) bool
+type invocationInfo struct {
+	Method string
+}
+
+func newinvocationInfo(method interface{}) invocationInfo {
+	return invocationInfo{
+		Method: runtime.FuncForPC(reflect.ValueOf(method).Pointer()).Name(),
+	}
+}
+
+func (inv invocationInfo) String() string {
+	if inv.Method != "" {
+		return inv.Method
+	}
+	return "<nil>"
+}
 
 type guardCondition struct {
 	Guard       GuardFunc
-	Description InvocationInfo
+	Description invocationInfo
 }
 
 type transitionGuard struct {
 	Guards []guardCondition
 }
 
-func newtransitionGuard(guards ...Guard) transitionGuard {
+func newtransitionGuard(guards ...GuardFunc) transitionGuard {
 	tg := transitionGuard{Guards: make([]guardCondition, len(guards))}
 	for i, guard := range guards {
 		tg.Guards[i] = guardCondition{
-			Guard:       guard.Func,
-			Description: newInvocationInfo(guard, guard.Desc, false),
+			Guard:       guard,
+			Description: newinvocationInfo(guard),
 		}
 	}
 	return tg
@@ -42,7 +57,7 @@ func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...inter
 	unmet := make([]string, 0, len(t.Guards))
 	for _, guard := range t.Guards {
 		if !guard.Guard(ctx, args...) {
-			unmet = append(unmet, guard.Description.Description)
+			unmet = append(unmet, guard.Description.String())
 		}
 	}
 	return unmet
@@ -100,8 +115,7 @@ func (t *transitioningTriggerBehaviour) ResultsInTransitionFrom(_ context.Contex
 
 type dynamicTriggerBehaviour struct {
 	baseTriggerBehaviour
-	Destination    func(context.Context, ...interface{}) (State, error)
-	TransitionInfo DynamicTransitionInfo
+	Destination func(context.Context, ...interface{}) (State, error)
 }
 
 func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _ State, args ...interface{}) (st State, ok bool) {
@@ -115,7 +129,7 @@ func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _
 
 type internalTriggerBehaviour struct {
 	baseTriggerBehaviour
-	Action func(context.Context, Transition, ...interface{}) error
+	Action ActionFunc
 }
 
 func (t *internalTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, source State, _ ...interface{}) (State, bool) {

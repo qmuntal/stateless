@@ -31,12 +31,12 @@ type StateConfiguration struct {
 	lookup func(State) *stateRepresentation
 }
 
-// The State is configured with this configuration.
+// State is configured with this configuration.
 func (sc *StateConfiguration) State() State {
 	return sc.sr.State
 }
 
-// The Machine that is configured with this configuration.
+// Machine that is configured with this configuration.
 func (sc *StateConfiguration) Machine() *StateMachine {
 	return sc.sm
 }
@@ -155,6 +155,12 @@ func (sc *StateConfiguration) OnExit(action ActionFunc) *StateConfiguration {
 	return sc
 }
 
+// SubstateOf sets the superstate that the configured state is a substate of.
+// Substates inherit the allowed transitions of their superstate.
+// When entering directly into a substate from outside of the superstate,
+// entry actions for the superstate are executed.
+// Likewise when leaving from the substate to outside the supserstate,
+// exit actions for the superstate will execute.
 func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	state := sc.sr.State
 	// Check for accidental identical cyclic configuration

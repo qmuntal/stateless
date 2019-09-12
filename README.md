@@ -100,8 +100,8 @@ The state machine will choose between multiple transitions based on guard clause
 
 ```go
 phoneCall.Configure(stateOffHook).
-    Permit(triggerCallDialled, stateRinging, func(context.Context, ...interface{}) bool {return IsValidNumber()}).
-    Permit(triggerCallDialled, stateBeeping, func(context.Context, ...interface{}) bool {return IsValidNumber()})
+    Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()}).
+    Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()})
 ```
 
 Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time.) Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.
@@ -152,5 +152,5 @@ stateMachine.Configure(stateAssigned).
 By default, triggers must be ignored explicitly. To override Stateless's default behaviour of throwing a panic when an unhandled trigger is fired, configure the state machine using the `OnUnhandledTrigger` method:
 
 ```go
-stateMachine.OnUnhandledTrigger( func (_ context.Context, state State, trigger Trigger, unmetGuards []string) {})
+stateMachine.OnUnhandledTrigger( func (_ context.Context, state State, _ Trigger, _ []string) {})
 ```

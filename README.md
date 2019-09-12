@@ -137,7 +137,7 @@ Alternatively, a state can be marked reentrant so its entry and exit events will
 ```go
 stateMachine.Configure(stateAssigned).
     PermitReentry(triggerAssigned).
-    .OnEntry(func(_ context.Context, _ ...interface{}) error {
+    OnEntry(func(_ context.Context, _ ...interface{}) error {
         startCallTimer()
         return nil
     })

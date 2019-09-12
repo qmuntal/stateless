@@ -10,14 +10,15 @@ type stateReference struct {
 }
 
 type actionBehaviour struct {
-	Action      func(ctx context.Context, transition Transition, args ...interface{}) error
+	Action      func(ctx context.Context, args ...interface{}) error
 	Description invocationInfo
 	Trigger     *Trigger
 }
 
 func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
 	if a.Trigger == nil || *a.Trigger == transition.Trigger {
-		return a.Action(ctx, transition, args...)
+		ctx = withTransition(ctx, transition)
+		return a.Action(ctx, args...)
 	}
 	return nil
 }

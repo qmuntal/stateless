@@ -138,7 +138,8 @@ func (t *internalTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, so
 }
 
 func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
-	return t.Action(ctx, transition, args...)
+	ctx = withTransition(ctx, transition)
+	return t.Action(ctx, args...)
 }
 
 type triggerBehaviourResult struct {

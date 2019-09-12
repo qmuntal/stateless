@@ -5,8 +5,21 @@ import (
 	"fmt"
 )
 
+type transitionKey struct{}
+
+func withTransition(ctx context.Context, transition Transition) context.Context {
+	return context.WithValue(ctx, transitionKey{}, transition)
+}
+
+// GetTransition returns the transition from the context.
+// If there is no transition the returned value is empty.
+func GetTransition(ctx context.Context) Transition {
+	return ctx.Value(transitionKey{}).(Transition)
+}
+
 // ActionFunc describes a generic action function.
-type ActionFunc = func(context.Context, Transition, ...interface{}) error
+// The context will always contain Transition information.
+type ActionFunc = func(context.Context, ...interface{}) error
 
 // GuardFunc defines a generic guard function.
 type GuardFunc = func(context.Context, ...interface{}) bool

@@ -2,6 +2,7 @@ package stateless
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"runtime"
 )
@@ -151,16 +152,15 @@ type TriggerWithParameters struct {
 	ArgumentTypes []reflect.Type
 }
 
-func (t TriggerWithParameters) validateParameters(args ...interface{}) bool {
+func (t TriggerWithParameters) validateParameters(args ...interface{}) {
 	if len(args) != len(t.ArgumentTypes) {
-		return false
+		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}
 	for i := range t.ArgumentTypes {
 		if t.ArgumentTypes[i] != reflect.TypeOf(args[i]) {
-			return false
+			panic(fmt.Sprintf("stateless: The argument in position '%d' is of type '%v' but must be of type '%v'.", i, reflect.TypeOf(args[i]), t.ArgumentTypes[i]))
 		}
 	}
-	return true
 }
 
 type onTransitionEvents []func(context.Context, Transition)

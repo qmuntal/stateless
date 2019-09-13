@@ -121,7 +121,7 @@ func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger,
 	if len(metResults) == 1 {
 		result, ok = metResults[0], true
 	} else if len(unmetResults) > 0 {
-		result, ok = unmetResults[0], true
+		result, ok = unmetResults[0], false
 	}
 	return
 }

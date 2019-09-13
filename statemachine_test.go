@@ -1,26 +1,23 @@
 package stateless
 
 import (
-	"context"
 	"testing"
 )
 
-func TestDefaultUnhandledTriggerAction(t *testing.T) {
-	type args struct {
-		in0         context.Context
-		state       State
-		trigger     Trigger
-		unmetGuards []string
-	}
+func TestTransition_IsReentry(t *testing.T) {
 	tests := []struct {
 		name string
-		args args
+		t    *Transition
+		want bool
 	}{
-		// TODO: Add test cases.
+		{"TransitionIsNotChange", &Transition{"1", "1", "0"}, true},
+		{"TransitionIsChange", &Transition{"1", "2", "0"}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			DefaultUnhandledTriggerAction(tt.args.in0, tt.args.state, tt.args.trigger, tt.args.unmetGuards)
+			if got := tt.t.IsReentry(); got != tt.want {
+				t.Errorf("Transition.IsReentry() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

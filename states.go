@@ -15,12 +15,12 @@ type actionBehaviour struct {
 	Trigger     *Trigger
 }
 
-func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
+func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) (err error) {
 	if a.Trigger == nil || *a.Trigger == transition.Trigger {
 		ctx = withTransition(ctx, transition)
-		return a.Action(ctx, args...)
+		err = a.Action(ctx, args...)
 	}
-	return nil
+	return
 }
 
 type actionBehaviourSteady struct {
@@ -36,7 +36,7 @@ type superset interface {
 	Activate(context.Context) error
 	Deactivate(context.Context) error
 	Enter(context.Context, Transition, ...interface{}) error
-	Exit(context.Context, Transition) (Transition, error)
+	Exit(context.Context, Transition) error
 	IsIncludedInState(State) bool
 	PermittedTriggers(context.Context, ...interface{}) []Trigger
 	state() State
@@ -156,45 +156,43 @@ func (sr *stateRepresentation) Deactivate(ctx context.Context) (err error) {
 }
 
 func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
-	if transition.IsReentry() {
+	isReentry := transition.IsReentry()
+	if !isReentry && sr.IncludeState(transition.Source) {
+		return
+	}
+	if !isReentry && sr.Superstate != nil {
+		err = sr.Superstate.Enter(ctx, transition, args...)
+	}
+	if err == nil {
 		err = sr.executeEntryActions(ctx, transition, args...)
 		if err == nil {
 			err = sr.executeActivationActions(ctx)
-		}
-	} else if !sr.IncludeState(transition.Source) {
-		if sr.Superstate != nil {
-			err = sr.Superstate.Enter(ctx, transition, args...)
-		}
-		if err == nil {
-			err = sr.executeEntryActions(ctx, transition, args...)
-			if err == nil {
-				err = sr.executeActivationActions(ctx)
-			}
 		}
 	}
 	return
 }
 
-func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) (newTransition Transition, err error) {
-	newTransition = transition
-	if transition.IsReentry() {
-		err = sr.executeDeactivationActions(ctx)
-		if err == nil {
-			err = sr.executeExitActions(ctx, transition)
-		}
-	} else if !sr.IncludeState(transition.Destination) {
-		err = sr.executeDeactivationActions(ctx)
-		if err == nil {
-			err = sr.executeExitActions(ctx, transition)
-		}
-		if err == nil && sr.Superstate != nil {
-			if sr.IsIncludedInState(transition.Destination) {
-				if sr.Superstate.state() != transition.Destination {
-					newTransition, err = sr.Superstate.Exit(ctx, transition)
-				}
-			} else {
-				newTransition, err = sr.Superstate.Exit(ctx, transition)
+func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) (err error) {
+	isReentry := transition.IsReentry()
+	if !isReentry && sr.IncludeState(transition.Destination) {
+		return
+	}
+
+	err = sr.executeDeactivationActions(ctx)
+	if err == nil {
+		err = sr.executeExitActions(ctx, transition)
+	}
+	// Must check if there is a superstate, and if we are leaving that superstate
+	if err == nil && sr.Superstate != nil {
+		// Check if destination is within the state list
+		if sr.IsIncludedInState(transition.Destination) {
+			// Destination state is within the list, exit first superstate only if it is NOT the the first
+			if sr.Superstate.state() != transition.Destination {
+				err = sr.Superstate.Exit(ctx, transition)
 			}
+		} else {
+			// Exit the superstate as well
+			err = sr.Superstate.Exit(ctx, transition)
 		}
 	}
 	return

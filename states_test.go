@@ -2,6 +2,7 @@ package stateless
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -158,8 +159,23 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted(t *testing.T) {
 			return nil
 		},
 	})
-	sr.Enter(context.Background(), transition)
+	err := sr.Enter(context.Background(), transition)
 	assert.Equal(t, transition, actualTransition)
+	assert.NoError(t, err)
+}
+
+func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) {
+	sr := newstateRepresentation(stateB)
+	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+		Action: func(_ context.Context, _ ...interface{}) error {
+			return errors.New("")
+		},
+	})
+	err := sr.Enter(context.Background(), transition)
+	assert.NotEqual(t, transition, actualTransition)
+	assert.Error(t, err)
 }
 
 func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
@@ -286,8 +302,23 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 			return nil
 		},
 	})
-	sr.Exit(context.Background(), transition)
+	err := sr.Exit(context.Background(), transition)
 	assert.Equal(t, transition, actualTransition)
+	assert.NoError(t, err)
+}
+
+func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
+	sr := newstateRepresentation(stateA)
+	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+		Action: func(_ context.Context, _ ...interface{}) error {
+			return errors.New("")
+		},
+	})
+	err := sr.Exit(context.Background(), transition)
+	assert.NotEqual(t, transition, actualTransition)
+	assert.Error(t, err)
 }
 
 func Test_stateRepresentation_Exit_FromSubToSuperstate_SubstateExitActionsExecuted(t *testing.T) {
@@ -300,6 +331,23 @@ func Test_stateRepresentation_Exit_FromSubToSuperstate_SubstateExitActionsExecut
 		},
 	})
 	transition := Transition{Source: sub.State, Destination: super.State, Trigger: triggerX}
+	sub.Exit(context.Background(), transition)
+	assert.True(t, executed)
+}
+
+func Test_stateRepresentation_Exit_FromSubToOther_SuperstateExitActionsExecuted(t *testing.T) {
+	super, sub := createSuperSubstatePair()
+	supersuper := newstateRepresentation(stateC)
+	super.Superstate = supersuper
+	supersuper.Superstate = newstateRepresentation(stateD)
+	executed := false
+	super.ExitActions = append(super.ExitActions, actionBehaviour{
+		Action: func(_ context.Context, _ ...interface{}) error {
+			executed = true
+			return nil
+		},
+	})
+	transition := Transition{Source: sub.State, Destination: stateD, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.True(t, executed)
 }

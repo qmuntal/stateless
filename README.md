@@ -101,7 +101,7 @@ The state machine will choose between multiple transitions based on guard clause
 ```go
 phoneCall.Configure(stateOffHook).
     Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()}).
-    Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()})
+    Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return !IsValidNumber()})
 ```
 
 Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time.) Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.

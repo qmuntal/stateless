@@ -91,9 +91,9 @@ func Test_stateRepresentation_CanHandle_TransitionUnmetGuardConditions_TriggerCa
 	sr := newstateRepresentation(stateB)
 	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
 		Trigger: triggerX,
-		Guard: newtransitionGuard(func(ctx context.Context, args ...interface{}) bool {
+		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
-		}, func(ctx context.Context, args ...interface{}) bool {
+		}, func(_ context.Context, _ ...interface{}) bool {
 			return false
 		}),
 	}, Destination: stateC})
@@ -104,9 +104,9 @@ func Test_stateRepresentation_CanHandle_TransitionGuardConditionsMet_TriggerCanB
 	sr := newstateRepresentation(stateB)
 	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
 		Trigger: triggerX,
-		Guard: newtransitionGuard(func(ctx context.Context, args ...interface{}) bool {
+		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
-		}, func(ctx context.Context, args ...interface{}) bool {
+		}, func(_ context.Context, _ ...interface{}) bool {
 			return true
 		}),
 	}, Destination: stateC})
@@ -117,9 +117,9 @@ func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuard
 	super, sub := createSuperSubstatePair()
 	super.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
 		Trigger: triggerX,
-		Guard: newtransitionGuard(func(ctx context.Context, args ...interface{}) bool {
+		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
-		}, func(ctx context.Context, args ...interface{}) bool {
+		}, func(_ context.Context, _ ...interface{}) bool {
 			return false
 		}),
 	}, Destination: stateC})
@@ -134,9 +134,9 @@ func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardCondi
 	super, sub := createSuperSubstatePair()
 	super.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
 		Trigger: triggerX,
-		Guard: newtransitionGuard(func(ctx context.Context, args ...interface{}) bool {
+		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
-		}, func(ctx context.Context, args ...interface{}) bool {
+		}, func(_ context.Context, _ ...interface{}) bool {
 			return true
 		}),
 	}, Destination: stateC})

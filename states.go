@@ -250,11 +250,24 @@ func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...in
 		for _, tb := range value {
 			if len(tb.UnmetGuardConditions(ctx, args...)) == 0 {
 				triggers = append(triggers, key)
+				break
 			}
 		}
 	}
 	if sr.Superstate != nil {
 		triggers = append(triggers, sr.Superstate.PermittedTriggers(ctx, args...)...)
+		// remove duplicated
+		seen := make(map[string]struct{}, len(triggers))
+		j := 0
+		for _, v := range triggers {
+			if _, ok := seen[v]; ok {
+				continue
+			}
+			seen[v] = struct{}{}
+			triggers[j] = v
+			j++
+		}
+		triggers = triggers[:j]
 	}
 	return
 }

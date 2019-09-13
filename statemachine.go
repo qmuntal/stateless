@@ -108,16 +108,21 @@ func (sm *StateMachine) State(ctx context.Context) (State, error) {
 // MustState returns the current state without the error.
 // Use this only if you are sure that your machine configuration
 // does not return any error.
-func (sm *StateMachine) MustState(ctx context.Context) State {
-	st, err := sm.stateAccessor(ctx)
+func (sm *StateMachine) MustState() State {
+	st, err := sm.stateAccessor(context.Background())
 	if err != nil {
 		panic(err)
 	}
 	return st
 }
 
-// PermittedTriggers returns the currently-permissible trigger values.
+// PermittedTriggers see PermittedTriggersCtx.
 func (sm *StateMachine) PermittedTriggers(ctx context.Context, args ...interface{}) ([]Trigger, error) {
+	return sm.PermittedTriggersCtx(context.Background(), args...)
+}
+
+// PermittedTriggersCtx returns the currently-permissible trigger values.
+func (sm *StateMachine) PermittedTriggersCtx(ctx context.Context, args ...interface{}) ([]Trigger, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return nil, err
@@ -125,10 +130,15 @@ func (sm *StateMachine) PermittedTriggers(ctx context.Context, args ...interface
 	return sr.PermittedTriggers(ctx, args...), nil
 }
 
-// Activate activates current state. Actions associated with activating the currrent state will be invoked.
+// Activate see ActivateCtx.
+func (sm *StateMachine) Activate(ctx context.Context) error {
+	return sm.ActivateCtx(context.Background())
+}
+
+// ActivateCtx activates current state. Actions associated with activating the currrent state will be invoked.
 // The activation is idempotent and subsequent activation of the same current state
 // will not lead to re-execution of activation callbacks.
-func (sm *StateMachine) Activate(ctx context.Context) error {
+func (sm *StateMachine) ActivateCtx(ctx context.Context) error {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return err
@@ -136,10 +146,15 @@ func (sm *StateMachine) Activate(ctx context.Context) error {
 	return sr.Activate(ctx)
 }
 
-// Deactivate deactivates current state. Actions associated with deactivating the currrent state will be invoked.
+// Deactivate see DeactivateCtx.
+func (sm *StateMachine) Deactivate() error {
+	return sm.DeactivateCtx(context.Background())
+}
+
+// DeactivateCtx deactivates current state. Actions associated with deactivating the currrent state will be invoked.
 // The deactivation is idempotent and subsequent deactivation of the same current state
 // will not lead to re-execution of deactivation callbacks.
-func (sm *StateMachine) Deactivate(ctx context.Context) error {
+func (sm *StateMachine) DeactivateCtx(ctx context.Context) error {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return err
@@ -147,9 +162,14 @@ func (sm *StateMachine) Deactivate(ctx context.Context) error {
 	return sr.Deactivate(ctx)
 }
 
-// IsInState determine if the state machine is in the supplied state.
+// IsInState see IsInStateCtx.
+func (sm *StateMachine) IsInState(state State) (bool, error) {
+	return sm.IsInStateCtx(context.Background(), state)
+}
+
+// IsInStateCtx determine if the state machine is in the supplied state.
 // Returns true if the current state is equal to, or a substate of, the supplied state.
-func (sm *StateMachine) IsInState(ctx context.Context, state State) (bool, error) {
+func (sm *StateMachine) IsInStateCtx(ctx context.Context, state State) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
@@ -157,8 +177,13 @@ func (sm *StateMachine) IsInState(ctx context.Context, state State) (bool, error
 	return sr.IsIncludedInState(state), nil
 }
 
-// CanFire returns true if the trigger can be fired in the current state.
-func (sm *StateMachine) CanFire(ctx context.Context, trigger Trigger) (bool, error) {
+// CanFire see CanFireCtx.
+func (sm *StateMachine) CanFire(trigger Trigger) (bool, error) {
+	return sm.CanFireCtx(context.Background(), trigger)
+}
+
+// CanFireCtx returns true if the trigger can be fired in the current state.
+func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
@@ -175,11 +200,16 @@ func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...r
 	sm.triggerConfig[trigger] = config
 }
 
-// Fire Transition from the current state via the specified trigger.
+// Fire see FireCtx
+func (sm *StateMachine) Fire(trigger Trigger, args ...interface{}) error {
+	return sm.FireCtx(context.Background(), trigger, args...)
+}
+
+// FireCtx transition from the current state via the specified trigger.
 // The target state is determined by the configuration of the current state.
 // Actions associated with leaving the current state and entering the new one
 // will be invoked.
-func (sm *StateMachine) Fire(ctx context.Context, trigger Trigger, args ...interface{}) error {
+func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	return sm.internalFire(ctx, trigger, args...)
 }
 

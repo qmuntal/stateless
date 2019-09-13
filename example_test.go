@@ -29,7 +29,6 @@ const (
 )
 
 func Example() {
-	ctx := context.Background()
 	phoneCall := stateless.NewStateMachine(stateOffHook)
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
@@ -73,17 +72,17 @@ func Example() {
 		Permit(triggerTakenOffHold, stateConnected).
 		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 
-	phoneCall.Fire(ctx, triggerCallDialed, "qmuntal")
-	phoneCall.Fire(ctx, triggerCallConnected)
-	phoneCall.Fire(ctx, triggerSetVolume, 2)
-	phoneCall.Fire(ctx, triggerPlacedOnHold)
-	phoneCall.Fire(ctx, triggerMuteMicrophone)
-	phoneCall.Fire(ctx, triggerUnmuteMicrophone)
-	phoneCall.Fire(ctx, triggerTakenOffHold)
-	phoneCall.Fire(ctx, triggerSetVolume, 11)
-	phoneCall.Fire(ctx, triggerPlacedOnHold)
-	phoneCall.Fire(ctx, triggerPhoneHurledAgainstWall)
-	fmt.Printf("State is %s\n", phoneCall.MustState(ctx))
+	phoneCall.Fire(triggerCallDialed, "qmuntal")
+	phoneCall.Fire(triggerCallConnected)
+	phoneCall.Fire(triggerSetVolume, 2)
+	phoneCall.Fire(triggerPlacedOnHold)
+	phoneCall.Fire(triggerMuteMicrophone)
+	phoneCall.Fire(triggerUnmuteMicrophone)
+	phoneCall.Fire(triggerTakenOffHold)
+	phoneCall.Fire(triggerSetVolume, 11)
+	phoneCall.Fire(triggerPlacedOnHold)
+	phoneCall.Fire(triggerPhoneHurledAgainstWall)
+	fmt.Printf("State is %s\n", phoneCall.MustState())
 
 	// Output:
 	// [Phone Call] placed for : [qmuntal]

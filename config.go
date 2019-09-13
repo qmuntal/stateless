@@ -58,7 +58,7 @@ func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfigu
 // Permit accept the specified trigger and transition to the destination state if the guard conditions are met (if any).
 func (sc *StateConfiguration) Permit(trigger Trigger, destinationState State, guards ...GuardFunc) *StateConfiguration {
 	if destinationState == sc.sr.State {
-		panic("stateless: Permit() (and PermitIf()) require that the destination state is not equal to the source state. To accept a trigger without changing state, use either Ignore() or PermitReentry().")
+		panic("stateless: Permit() require that the destination state is not equal to the source state. To accept a trigger without changing state, use either Ignore() or PermitReentry().")
 	}
 	sc.sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{
 		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},

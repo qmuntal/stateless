@@ -1113,3 +1113,25 @@ func TestStateMachine_InitialTransition_DoNotAllowMoreThanOneInitialTransition(t
 
 	assert.Panics(t, func() { sm.Configure(stateB).InitialTransition(stateA) })
 }
+
+func TestStateMachine_String(t *testing.T) {
+	tests := []struct {
+		name string
+		sm   *StateMachine
+		want string
+	}{
+		{"noTriggers", NewStateMachine(stateA), "StateMachine {{ State = A, PermittedTriggers = [] }}"},
+		{"error state", NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+			return nil, errors.New("status error")
+		}, func(_ context.Context, s State) error { return nil }, FiringImmediate), ""},
+		{"triggers", NewStateMachine(stateB).Configure(stateB).Permit(triggerX, stateA).Permit(triggerY, stateC).Machine(),
+			"StateMachine {{ State = B, PermittedTriggers = [X Y] }}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.sm.String(); got != tt.want {
+				t.Errorf("StateMachine.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

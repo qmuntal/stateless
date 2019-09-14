@@ -231,6 +231,19 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 	return &StateConfiguration{sm: sm, sr: sm.stateRepresentation(state), lookup: sm.stateRepresentation}
 }
 
+// String returns a human-readable representation of the state machine.
+func (sm *StateMachine) String() string {
+	state, err := sm.State(context.Background())
+	if err != nil {
+		return ""
+	}
+	triggers, err := sm.PermittedTriggers()
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("StateMachine {{ State = %v, PermittedTriggers = %v }}", state, triggers)
+}
+
 func (sm *StateMachine) setState(ctx context.Context, state State) error {
 	return sm.stateMutator(ctx, state)
 }

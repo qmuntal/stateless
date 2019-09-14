@@ -28,7 +28,7 @@ const (
 type Transition struct {
 	Source      State
 	Destination State
-	Trigger     State
+	Trigger     Trigger
 }
 
 // IsReentry returns true if the transition is a re-entry,

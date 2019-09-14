@@ -106,8 +106,9 @@ func (sm *StateMachine) State(ctx context.Context) (State, error) {
 }
 
 // MustState returns the current state without the error.
-// Use this only if you are sure that your machine configuration
-// does not return any error.
+// It is safe to use this method when used together with NewStateMachine
+// or when using NewStateMachineWithExternalStorage with an state accessor that
+// does not return an error.
 func (sm *StateMachine) MustState() State {
 	st, err := sm.stateAccessor(context.Background())
 	if err != nil {
@@ -117,7 +118,7 @@ func (sm *StateMachine) MustState() State {
 }
 
 // PermittedTriggers see PermittedTriggersCtx.
-func (sm *StateMachine) PermittedTriggers(ctx context.Context, args ...interface{}) ([]Trigger, error) {
+func (sm *StateMachine) PermittedTriggers(args ...interface{}) ([]Trigger, error) {
 	return sm.PermittedTriggersCtx(context.Background(), args...)
 }
 
@@ -131,7 +132,7 @@ func (sm *StateMachine) PermittedTriggersCtx(ctx context.Context, args ...interf
 }
 
 // Activate see ActivateCtx.
-func (sm *StateMachine) Activate(ctx context.Context) error {
+func (sm *StateMachine) Activate() error {
 	return sm.ActivateCtx(context.Background())
 }
 

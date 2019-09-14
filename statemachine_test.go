@@ -548,8 +548,8 @@ func TestStateMachine_Fire_OnExitFiresOnlyOnceReentrySubstate(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	// assert.Equal(t, 0, exitB)
-	// assert.Equal(t, 0, entryB)
-	// assert.Equal(t, 1, exitA)
-	// assert.Equal(t, 1, entryA)
+	assert.Equal(t, 0, exitB)
+	assert.Equal(t, 0, entryB)
+	assert.Equal(t, 1, exitA)
+	assert.Equal(t, 1, entryA)
 }

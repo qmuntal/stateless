@@ -183,7 +183,7 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) 
 		err = sr.executeExitActions(ctx, transition)
 	}
 	// Must check if there is a superstate, and if we are leaving that superstate
-	if err == nil && sr.Superstate != nil {
+	if err == nil && !isReentry && sr.Superstate != nil {
 		// Check if destination is within the state list
 		if sr.IsIncludedInState(transition.Destination) {
 			// Destination state is within the list, exit first superstate only if it is NOT the the first

@@ -171,10 +171,123 @@ func TestStateMachine_Fire_ErrorForInvalidTransition(t *testing.T) {
 	assert.Error(t, sm.Fire(triggerX))
 }
 
+func TestStateMachine_Fire_ErrorForInvalidTransitionMentionsGuardDescriptionIfPresent(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateA).Permit(triggerX, stateB, func(_ context.Context, _ ...interface{}) bool {
+		return false
+	})
+	assert.Error(t, sm.Fire(triggerX))
+}
+
+func TestStateMachine_Fire_ParametersSuppliedToFireArePassedToEntryAction(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
+	sm.Configure(stateB).Permit(triggerX, stateC)
+
+	var (
+		entryArg1 string
+		entryArg2 int
+	)
+	sm.Configure(stateC).OnEntryFrom(triggerX, func(_ context.Context, args ...interface{}) error {
+		entryArg1 = args[0].(string)
+		entryArg2 = args[1].(int)
+		return nil
+	})
+	suppliedArg1, suppliedArg2 := "something", 2
+	sm.Fire(triggerX, suppliedArg1, suppliedArg2)
+
+	assert.Equal(t, suppliedArg1, entryArg1)
+	assert.Equal(t, suppliedArg2, entryArg2)
+}
+
+func TestStateMachine_OnUnhandledTrigger_TheProvidedHandlerIsCalledWithStateAndTrigger(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	var (
+		unhandledState   State
+		unhandledTrigger Trigger
+	)
+	sm.OnUnhandledTrigger(func(_ context.Context, state State, trigger Trigger, unmetGuards []string) error {
+		unhandledState = state
+		unhandledTrigger = trigger
+		return nil
+	})
+
+	sm.Fire(triggerZ)
+
+	assert.Equal(t, stateB, unhandledState)
+	assert.Equal(t, triggerZ, unhandledTrigger)
+}
+
 func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(t *testing.T) {
 	sm := NewStateMachine(stateB)
 
 	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
 
 	assert.Panics(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
+}
+
+func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.Configure(stateB).Permit(triggerX, stateA)
+
+	var transition Transition
+	sm.OnTransitioned(func(_ context.Context, tr Transition) {
+		transition = tr
+	})
+	sm.Fire(triggerX)
+
+	assert.NotZero(t, transition)
+	assert.Equal(t, triggerX, transition.Trigger)
+	assert.Equal(t, stateB, transition.Source)
+	assert.Equal(t, stateA, transition.Destination)
+}
+
+func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	expectedOrdering := []string{"OnExit", "OnTransitioned", "OnEntry"}
+	var actualOrdering []string
+
+	sm.Configure(stateB).Permit(triggerX, stateA).OnExit(func(_ context.Context, args ...interface{}) error {
+		actualOrdering = append(actualOrdering, "OnExit")
+		return nil
+	})
+
+	sm.Configure(stateA).OnEntry(func(_ context.Context, args ...interface{}) error {
+		actualOrdering = append(actualOrdering, "OnEntry")
+		return nil
+	})
+
+	sm.OnTransitioned(func(_ context.Context, tr Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	sm.Fire(triggerX)
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_SubstateOf_DirectCyclicConfigurationDetected(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateA) })
+}
+
+func TestStateMachine_SubstateOf_NestedCyclicConfigurationDetected(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateB).SubstateOf(stateA)
+	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateB) })
+}
+
+func TestStateMachine_SubstateOf_NestedTwoLevelsCyclicConfigurationDetected(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateB).SubstateOf(stateA)
+	sm.Configure(stateC).SubstateOf(stateB)
+	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateC) })
+}
+
+func TestStateMachine_SubstateOf_DelayedNestedCyclicConfigurationDetected(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateB).SubstateOf(stateA)
+	sm.Configure(stateC)
+	sm.Configure(stateA).SubstateOf(stateC)
+	assert.Panics(t, func() { sm.Configure(stateC).SubstateOf(stateB) })
 }

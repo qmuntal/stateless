@@ -169,8 +169,8 @@ func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	}
 
 	// Check for accidental identical nested cyclic configuration
-	supersets := make(map[State]struct{})
 	var empty struct{}
+	supersets := map[State]struct{}{state: empty}
 	// Build list of super states and check for
 
 	activeSc := sc.lookup(superstate)

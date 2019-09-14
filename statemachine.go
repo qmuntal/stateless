@@ -38,7 +38,7 @@ func (t *Transition) IsReentry() bool {
 }
 
 // UnhandledTriggerActionFunc defines a function that will be called when a trigger is not handled.
-type UnhandledTriggerActionFunc func(ctx context.Context, state State, trigger Trigger, unmetGuards []string) error
+type UnhandledTriggerActionFunc = func(ctx context.Context, state State, trigger Trigger, unmetGuards []string) error
 
 // DefaultUnhandledTriggerAction is the default unhandled trigger action.
 func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigger, unmetGuards []string) error {
@@ -57,7 +57,7 @@ type StateMachine struct {
 	triggerConfig          map[Trigger]TriggerWithParameters
 	stateAccessor          func(context.Context) (State, error)
 	stateMutator           func(context.Context, State) error
-	UnhandledTriggerAction UnhandledTriggerActionFunc
+	unhandledTriggerAction UnhandledTriggerActionFunc
 	onTransitionEvents     onTransitionEvents
 	eventQueue             *list.List
 	firingMode             FiringMode
@@ -68,7 +68,7 @@ func newStateMachine() *StateMachine {
 	return &StateMachine{
 		stateConfig:            make(map[State]*stateRepresentation),
 		triggerConfig:          make(map[Trigger]TriggerWithParameters),
-		UnhandledTriggerAction: UnhandledTriggerActionFunc(DefaultUnhandledTriggerAction),
+		unhandledTriggerAction: UnhandledTriggerActionFunc(DefaultUnhandledTriggerAction),
 		eventQueue:             list.New(),
 	}
 }
@@ -220,6 +220,11 @@ func (sm *StateMachine) OnTransitioned(onTransitionAction func(context.Context, 
 	sm.onTransitionEvents = append(sm.onTransitionEvents, onTransitionAction)
 }
 
+// OnUnhandledTrigger override the default behaviour of returning an error when an unhandled trigger.
+func (sm *StateMachine) OnUnhandledTrigger(onUnhandledTriggerAction UnhandledTriggerActionFunc) {
+	sm.unhandledTriggerAction = onUnhandledTriggerAction
+}
+
 // Configure begin configuration of the entry/exit actions and allowed transitions
 // when the state machine is in a particular state.
 func (sm *StateMachine) Configure(state State) *StateConfiguration {
@@ -296,7 +301,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	representativeState := sm.stateRepresentation(source)
 	var result triggerBehaviourResult
 	if result, ok = representativeState.FindHandler(ctx, trigger, args...); !ok {
-		return sm.UnhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
+		return sm.unhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
 	}
 	switch t := result.Handler.(type) {
 	case *ignoredTriggerBehaviour:

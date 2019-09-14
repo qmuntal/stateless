@@ -339,10 +339,12 @@ func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.
 	sm.Configure(stateB).Permit(triggerX, stateA).OnExit(func(_ context.Context, args ...interface{}) error {
 		actualOrdering = append(actualOrdering, "OnExit")
 		return nil
-	})
+	}).Machine()
 
-	sm.Configure(stateA).OnEntry(func(_ context.Context, args ...interface{}) error {
+	var transition Transition
+	sm.Configure(stateA).OnEntry(func(ctx context.Context, args ...interface{}) error {
 		actualOrdering = append(actualOrdering, "OnEntry")
+		transition = GetTransition(ctx)
 		return nil
 	})
 
@@ -353,6 +355,9 @@ func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.
 	sm.Fire(triggerX)
 
 	assert.Equal(t, expectedOrdering, actualOrdering)
+	assert.Equal(t, triggerX, transition.Trigger)
+	assert.Equal(t, stateB, transition.Source)
+	assert.Equal(t, stateA, transition.Destination)
 }
 
 func TestStateMachine_SubstateOf_DirectCyclicConfigurationDetected(t *testing.T) {

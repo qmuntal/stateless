@@ -103,7 +103,7 @@ func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger,
 	for _, behaviour := range possibleBehaviours {
 		allResults = append(allResults, triggerBehaviourResult{
 			Handler:              behaviour,
-			UnmetGuardConditions: behaviour.UnmetGuardConditions(ctx),
+			UnmetGuardConditions: behaviour.UnmetGuardConditions(ctx, args...),
 		})
 	}
 	metResults := make([]triggerBehaviourResult, 0, len(allResults))

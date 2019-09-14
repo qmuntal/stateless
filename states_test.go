@@ -8,17 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	stateA = "A"
-	stateB = "B"
-	stateC = "C"
-	stateD = "D"
-
-	triggerX = "X"
-	triggerY = "Y"
-	triggerZ = "Z"
-)
-
 func createSuperSubstatePair() (*stateRepresentation, *stateRepresentation) {
 	super := newstateRepresentation(stateA)
 	sub := newstateRepresentation(stateB)

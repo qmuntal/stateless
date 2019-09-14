@@ -9,6 +9,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	stateA = "A"
+	stateB = "B"
+	stateC = "C"
+	stateD = "D"
+
+	triggerX = "X"
+	triggerY = "Y"
+	triggerZ = "Z"
+)
+
 func TestTransition_IsReentry(t *testing.T) {
 	tests := []struct {
 		name string

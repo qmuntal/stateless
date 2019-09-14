@@ -38,14 +38,14 @@ func (t *Transition) IsReentry() bool {
 }
 
 // UnhandledTriggerActionFunc defines a function that will be called when a trigger is not handled.
-type UnhandledTriggerActionFunc func(ctx context.Context, state State, trigger Trigger, unmetGuards []string)
+type UnhandledTriggerActionFunc func(ctx context.Context, state State, trigger Trigger, unmetGuards []string) error
 
 // DefaultUnhandledTriggerAction is the default unhandled trigger action.
-func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigger, unmetGuards []string) {
+func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigger, unmetGuards []string) error {
 	if len(unmetGuards) != 0 {
-		panic(fmt.Sprintf("stateless: Trigger '%s' is valid for transition from state '%s' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards))
+		return fmt.Errorf("stateless: Trigger '%s' is valid for transition from state '%s' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards)
 	}
-	panic(fmt.Sprintf("stateless: No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.", state, trigger))
+	return fmt.Errorf("stateless: No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.", state, trigger)
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
@@ -295,8 +295,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	representativeState := sm.stateRepresentation(source)
 	var result triggerBehaviourResult
 	if result, ok = representativeState.FindHandler(ctx, trigger, args...); !ok {
-		sm.UnhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
-		return nil
+		return sm.UnhandledTriggerAction(ctx, representativeState.State, trigger, result.UnmetGuardConditions)
 	}
 	switch t := result.Handler.(type) {
 	case *ignoredTriggerBehaviour:
@@ -381,7 +380,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 			// Verify that the target state is a substate
 			// Check if state has substate(s), and if an initial transition(s) has been set up.
 			if substate.State == sr.InitialTransitionTarget {
-				panic(fmt.Sprintf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget))
+				return nil, fmt.Errorf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget)
 			}
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger}

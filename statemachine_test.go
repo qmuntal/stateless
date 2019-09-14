@@ -2,6 +2,7 @@ package stateless
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,4 +126,55 @@ func TestStateMachine_Fire_DiscriminatedByGuard_ChoosesPermitedTransition(t *tes
 	sm.Fire(triggerX)
 
 	assert.Equal(t, stateC, sm.MustState())
+}
+
+func TestStateMachine_Fire_TriggerIsIgnored_ActionsNotExecuted(t *testing.T) {
+	fired := false
+	sm := NewStateMachine(stateB)
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			fired = true
+			return nil
+		}).
+		Ignore(triggerX)
+
+	sm.Fire(triggerX)
+
+	assert.False(t, fired)
+}
+
+func TestStateMachine_Fire_SelfTransitionPermited_ActionsFire(t *testing.T) {
+	fired := false
+	sm := NewStateMachine(stateB)
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			fired = true
+			return nil
+		}).
+		PermitReentry(triggerX)
+
+	sm.Fire(triggerX)
+
+	assert.True(t, fired)
+}
+
+func TestStateMachine_Fire_ImplicitReentryIsDisallowed(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	assert.Panics(t, func() {
+		sm.Configure(stateB).
+			Permit(triggerX, stateB)
+	})
+}
+
+func TestStateMachine_Fire_ErrorForInvalidTransition(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	assert.Error(t, sm.Fire(triggerX))
+}
+
+func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(t *testing.T) {
+	sm := NewStateMachine(stateB)
+
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
+
+	assert.Panics(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
 }

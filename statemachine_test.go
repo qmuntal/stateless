@@ -75,44 +75,44 @@ func TestStateMachine_CanFire(t *testing.T) {
 	assert.False(t, okY)
 }
 
-func TestStateMachine_CanFire_Error(t *testing.T) {
+func TestStateMachine_CanFire_StatusError(t *testing.T) {
 	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
-		return nil, errors.New("")
+		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
 	sm.Configure(stateB).Permit(triggerX, stateA)
 
 	ok, err := sm.CanFire(triggerX)
 	assert.False(t, ok)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "status error")
 }
 
-func TestStateMachine_IsInState_Error(t *testing.T) {
+func TestStateMachine_IsInState_StatusError(t *testing.T) {
 	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
-		return nil, errors.New("")
+		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
 	ok, err := sm.IsInState(stateA)
 	assert.False(t, ok)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "status error")
 }
 
 func TestStateMachine_Activate_StatusError(t *testing.T) {
 	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
-		return nil, errors.New("")
+		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
-	assert.Error(t, sm.Activate())
-	assert.Error(t, sm.Deactivate())
+	assert.EqualError(t, sm.Activate(), "status error")
+	assert.EqualError(t, sm.Deactivate(), "status error")
 }
 
 func TestStateMachine_PermittedTriggers_StatusError(t *testing.T) {
 	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
-		return nil, errors.New("")
+		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
 	_, err := sm.PermittedTriggers()
-	assert.Error(t, err)
+	assert.EqualError(t, err, "status error")
 }
 
 func TestStateMachine_MustState_StatusError(t *testing.T) {
@@ -121,6 +121,14 @@ func TestStateMachine_MustState_StatusError(t *testing.T) {
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
 	assert.Panics(t, func() { sm.MustState() })
+}
+
+func TestStateMachine_Fire_StatusError(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("status error")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	assert.EqualError(t, sm.Fire(triggerX), "status error")
 }
 
 func TestStateMachine_Configure_PermittedTriggersIncludeSuperstatePermittedTriggers(t *testing.T) {
@@ -184,6 +192,18 @@ func TestStateMachine_Fire_DiscriminatedByGuard_ChoosesPermitedTransition(t *tes
 	sm.Fire(triggerX)
 
 	assert.Equal(t, stateC, sm.MustState())
+}
+
+func TestStateMachine_Fire_SaveError(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return stateB, nil
+	}, func(_ context.Context, s State) error { return errors.New("status error") }, FiringImmediate)
+
+	sm.Configure(stateB).
+		Permit(triggerX, stateA)
+
+	assert.EqualError(t, sm.Fire(triggerX), "status error")
+	assert.Equal(t, stateB, sm.MustState())
 }
 
 func TestStateMachine_Fire_TriggerIsIgnored_ActionsNotExecuted(t *testing.T) {
@@ -502,6 +522,17 @@ func TestStateMachine_Fire_TransitionWhenPermitDyanmicIfHasMultipleExclusiveGuar
 	sm.Fire(triggerX, 3)
 
 	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_Fire_PermitDyanmic_Error(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateA).
+		PermitDynamic(triggerX, func(_ context.Context, _ ...interface{}) (State, error) {
+			return nil, errors.New("")
+		})
+
+	assert.Error(t, sm.Fire(triggerX), "")
+	assert.Equal(t, stateA, sm.MustState())
 }
 
 func TestStateMachine_Fire_PanicsWhenPermitDyanmicIfHasMultipleNonExclusiveGuards(t *testing.T) {

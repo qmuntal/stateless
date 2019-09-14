@@ -123,7 +123,7 @@ stateMachine.Configure(stateRinging).OnEntryFrom(triggerCallDialed, func(_ conte
 stateMachine.Fire(triggerCallDialed, "qmuntal")
 ```
 
-It is runtime safe to cast parameters to the ones specified in `SetTriggerParameters`. If the parameters passed in `Fire` do not match the ones specified, a panic will be thrown
+It is runtime safe to cast parameters to the ones specified in `SetTriggerParameters`. If the parameters passed in `Fire` do not match the ones specified it will panic.
 
 Trigger parameters can be used to dynamically select the destination state using the `PermitDynamic()` configuration method.
 

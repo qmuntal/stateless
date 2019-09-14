@@ -110,7 +110,7 @@ func (sm *StateMachine) State(ctx context.Context) (State, error) {
 // or when using NewStateMachineWithExternalStorage with an state accessor that
 // does not return an error.
 func (sm *StateMachine) MustState() State {
-	st, err := sm.stateAccessor(context.Background())
+	st, err := sm.State(context.Background())
 	if err != nil {
 		panic(err)
 	}

@@ -66,6 +66,63 @@ func TestStateMachine_Configure_InSubstate_TriggerIgnoredInSuperstate_RemainsInS
 	assert.Equal(t, stateB, sm.MustState())
 }
 
+func TestStateMachine_CanFire(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.Configure(stateB).Permit(triggerX, stateA)
+	okX, _ := sm.CanFire(triggerX)
+	okY, _ := sm.CanFire(triggerY)
+	assert.True(t, okX)
+	assert.False(t, okY)
+}
+
+func TestStateMachine_CanFire_Error(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	sm.Configure(stateB).Permit(triggerX, stateA)
+
+	ok, err := sm.CanFire(triggerX)
+	assert.False(t, ok)
+	assert.Error(t, err)
+}
+
+func TestStateMachine_IsInState_Error(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	ok, err := sm.IsInState(stateA)
+	assert.False(t, ok)
+	assert.Error(t, err)
+}
+
+func TestStateMachine_Activate_StatusError(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	assert.Error(t, sm.Activate())
+	assert.Error(t, sm.Deactivate())
+}
+
+func TestStateMachine_PermittedTriggers_StatusError(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	_, err := sm.PermittedTriggers()
+	assert.Error(t, err)
+}
+
+func TestStateMachine_MustState_StatusError(t *testing.T) {
+	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
+		return nil, errors.New("")
+	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
+
+	assert.Panics(t, func() { sm.MustState() })
+}
+
 func TestStateMachine_Configure_PermittedTriggersIncludeSuperstatePermittedTriggers(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	sm.Configure(stateA).Permit(triggerZ, stateB)

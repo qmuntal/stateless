@@ -193,12 +193,13 @@ func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger) (bool, 
 }
 
 // SetTriggerParameters specify the arguments that must be supplied when a specific trigger is fired.
-func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...reflect.Type) {
+func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...reflect.Type) *StateMachine {
 	config := TriggerWithParameters{Trigger: trigger, ArgumentTypes: argumentTypes}
 	if _, ok := sm.triggerConfig[config.Trigger]; ok {
 		panic(fmt.Sprintf("stateless: Parameters for the trigger '%s' have already been configured.", trigger))
 	}
 	sm.triggerConfig[trigger] = config
+	return sm
 }
 
 // Fire see FireCtx

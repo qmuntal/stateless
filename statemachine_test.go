@@ -291,3 +291,166 @@ func TestStateMachine_SubstateOf_DelayedNestedCyclicConfigurationDetected(t *tes
 	sm.Configure(stateA).SubstateOf(stateC)
 	assert.Panics(t, func() { sm.Configure(stateC).SubstateOf(stateB) })
 }
+
+func TestStateMachine_Fire_IgnoreVsPermitReentry(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var calls int
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			calls += 1
+			return nil
+		}).
+		PermitReentry(triggerX).
+		Ignore(triggerY)
+
+	sm.Fire(triggerX)
+	sm.Fire(triggerY)
+
+	assert.Equal(t, calls, 1)
+}
+
+func TestStateMachine_Fire_IgnoreVsPermitReentryFrom(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var calls int
+	sm.Configure(stateA).
+		OnEntryFrom(triggerX, func(_ context.Context, _ ...interface{}) error {
+			calls += 1
+			return nil
+		}).
+		OnEntryFrom(triggerY, func(_ context.Context, _ ...interface{}) error {
+			calls += 1
+			return nil
+		}).
+		PermitReentry(triggerX).
+		Ignore(triggerY)
+
+	sm.Fire(triggerX)
+	sm.Fire(triggerY)
+
+	assert.Equal(t, calls, 1)
+}
+
+func TestStateMachine_Fire_IfSelfTransitionPermited_ActionsFire_InSubstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var onEntryStateBfired, onExitStateBfired, onExitStateAfired bool
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			onEntryStateBfired = true
+			return nil
+		}).
+		PermitReentry(triggerX).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			onExitStateBfired = true
+			return nil
+		})
+
+	sm.Configure(stateA).
+		SubstateOf(stateB).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			onExitStateAfired = true
+			return nil
+		})
+
+	sm.Fire(triggerX)
+
+	assert.Equal(t, stateB, sm.MustState())
+	assert.True(t, onEntryStateBfired)
+	assert.True(t, onExitStateBfired)
+	assert.True(t, onExitStateAfired)
+}
+
+func TestStateMachine_Fire_TransitionWhenParameterizedGuardTrue(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateB, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 2
+		})
+
+	sm.Fire(triggerX, 2)
+
+	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_Fire_ErrorWhenParameterizedGuardFalse(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateB, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 3
+		})
+
+	sm.Fire(triggerX, 2)
+
+	assert.Error(t, sm.Fire(triggerX, 2))
+}
+
+func TestStateMachine_Fire_TransitionWhenBothParameterizedGuardClausesTrue(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateB, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 2
+		}, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) != 3
+		})
+
+	sm.Fire(triggerX, 2)
+
+	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_Fire_TransitionWhenGuardReturnsTrueOnTriggerWithMultipleParameters(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateB, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(string) == "3" && args[1].(int) == 2
+		})
+
+	sm.Fire(triggerX, "3", 2)
+
+	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_Fire_TransitionWhenPermitDyanmicIfHasMultipleExclusiveGuards(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		PermitDynamic(triggerX, func(_ context.Context, args ...interface{}) (State, error) {
+			if args[0].(int) == 3 {
+				return stateB, nil
+			}
+			return stateC, nil
+		}, func(_ context.Context, args ...interface{}) bool { return args[0].(int) == 3 || args[0].(int) == 5 }).
+		PermitDynamic(triggerX, func(_ context.Context, args ...interface{}) (State, error) {
+			if args[0].(int) == 2 {
+				return stateC, nil
+			}
+			return stateD, nil
+		}, func(_ context.Context, args ...interface{}) bool { return args[0].(int) == 2 || args[0].(int) == 4 })
+
+	sm.Fire(triggerX, 3)
+
+	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_Fire_PanicsWhenPermitDyanmicIfHasMultipleNonExclusiveGuards(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		PermitDynamic(triggerX, func(_ context.Context, args ...interface{}) (State, error) {
+			if args[0].(int) == 4 {
+				return stateB, nil
+			}
+			return stateC, nil
+		}, func(_ context.Context, args ...interface{}) bool { return args[0].(int)%2 == 0 }).
+		PermitDynamic(triggerX, func(_ context.Context, args ...interface{}) (State, error) {
+			if args[0].(int) == 2 {
+				return stateC, nil
+			}
+			return stateD, nil
+		}, func(_ context.Context, args ...interface{}) bool { return args[0].(int) == 2 })
+
+	assert.Panics(t, func() { sm.Fire(triggerX, 2) })
+}

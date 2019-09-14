@@ -872,3 +872,54 @@ func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
 
 	assert.Equal(t, expectedOrdering, actualOrdering)
 }
+
+func TestStateMachine_InternalTransition_StayInSameStateOneState(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateB).
+		InternalTransition(triggerX, func(_ context.Context, _ ...interface{}) error {
+			return nil
+		})
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateA, sm.MustState())
+}
+
+func TestStateMachine_InternalTransition_HandledOnlyOnceInSuper(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	handledIn := stateC
+	sm.Configure(stateA).
+		InternalTransition(triggerX, func(_ context.Context, _ ...interface{}) error {
+			handledIn = stateA
+			return nil
+		})
+
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		InternalTransition(triggerX, func(_ context.Context, _ ...interface{}) error {
+			handledIn = stateB
+			return nil
+		})
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateA, handledIn)
+}
+
+func TestStateMachine_InternalTransition_HandledOnlyOnceInSub(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	handledIn := stateC
+	sm.Configure(stateA).
+		InternalTransition(triggerX, func(_ context.Context, _ ...interface{}) error {
+			handledIn = stateA
+			return nil
+		})
+
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		InternalTransition(triggerX, func(_ context.Context, _ ...interface{}) error {
+			handledIn = stateB
+			return nil
+		})
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateB, handledIn)
+}

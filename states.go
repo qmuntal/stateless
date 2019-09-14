@@ -206,8 +206,8 @@ func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Tr
 			switch t := result.Handler.(type) {
 			case *internalTriggerBehaviour:
 				internalTransition = t
-				break
 			}
+			break
 		}
 		stateRep = stateRep.superstate()
 	}

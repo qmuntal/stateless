@@ -923,3 +923,89 @@ func TestStateMachine_InternalTransition_HandledOnlyOnceInSub(t *testing.T) {
 	sm.Fire(triggerX)
 	assert.Equal(t, stateB, handledIn)
 }
+
+func TestStateMachine_InitialTransition_EntersSubState(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		InitialTransition(stateC)
+
+	sm.Configure(stateC).
+		SubstateOf(stateB)
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateC, sm.MustState())
+}
+
+func TestStateMachine_InitialTransition_EntersSubStateofSubstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		InitialTransition(stateC)
+
+	sm.Configure(stateC).
+		InitialTransition(stateD).
+		SubstateOf(stateB)
+
+	sm.Configure(stateD).
+		SubstateOf(stateC)
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateD, sm.MustState())
+}
+
+func TestStateMachine_InitialTransition_DoesNotEnterSubStateofSubstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		sm.Configure(stateC).
+		InitialTransition(stateD).
+		SubstateOf(stateB)
+
+	sm.Configure(stateD).
+		SubstateOf(stateC)
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateB, sm.MustState())
+}
+
+func TestStateMachine_InitialTransition_DoNotAllowTransitionToSelf(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	assert.Panics(t, func() {
+		sm.Configure(stateA).
+			InitialTransition(stateA)
+	})
+}
+
+func TestStateMachine_InitialTransition_DoNotAllowTransitionToAnotherSuperstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		InitialTransition(stateA)
+
+	assert.Panics(t, func() { sm.Fire(triggerX) })
+}
+
+func TestStateMachine_InitialTransition_DoNotAllowMoreThanOneInitialTransition(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		InitialTransition(stateC)
+
+	assert.Panics(t, func() { sm.Configure(stateB).InitialTransition(stateA) })
+}

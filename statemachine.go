@@ -383,12 +383,17 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 	}
 	// Recursively enter substates that have an initial transition
 	if sr.HasInitialState {
+		isValidForInitialState := len(sr.Substates) != 0
 		for _, substate := range sr.Substates {
 			// Verify that the target state is a substate
 			// Check if state has substate(s), and if an initial transition(s) has been set up.
-			if substate.State == sr.InitialTransitionTarget {
-				return nil, fmt.Errorf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget)
+			if substate.State != sr.InitialTransitionTarget {
+				isValidForInitialState = false
+				break
 			}
+		}
+		if !isValidForInitialState {
+			panic(fmt.Sprintf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget))
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)

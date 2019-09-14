@@ -553,3 +553,113 @@ func TestStateMachine_Fire_OnExitFiresOnlyOnceReentrySubstate(t *testing.T) {
 	assert.Equal(t, 1, exitA)
 	assert.Equal(t, 1, entryA)
 }
+
+func TestStateMachine_Activate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	expectedOrdering := []string{"ActivatedC", "ActivatedA"}
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedA")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedC")
+			return nil
+		})
+
+	// should not be called for activation
+	sm.OnTransitioned(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	sm.Activate()
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Activate_Idempotent(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedA")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedC")
+			return nil
+		})
+
+	sm.Activate()
+	actualOrdering = make([]string, 0)
+	sm.Activate()
+
+	assert.Empty(t, actualOrdering)
+}
+
+func TestStateMachine_Deactivate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	expectedOrdering := []string{"DeactivatedA", "DeactivatedC"}
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedA")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedC")
+			return nil
+		})
+
+	// should not be called for activation
+	sm.OnTransitioned(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	sm.Activate()
+	sm.Deactivate()
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Deactivate_Idempotent(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedA")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedC")
+			return nil
+		})
+
+	sm.Activate()
+	sm.Deactivate()
+	actualOrdering = make([]string, 0)
+	sm.Activate()
+
+	assert.Empty(t, actualOrdering)
+}

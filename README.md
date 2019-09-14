@@ -44,6 +44,7 @@ This project, as well as the example above, is a almost direct port of [dotnet-s
 
 Most standard state machine constructs are supported:
 
+ * Support for states and triggers of any comparable type (int, strings, boolean, structs, etc.)
  * Hierarchical states
  * Entry/exit events for states
  * Guard clauses to support conditional transitions

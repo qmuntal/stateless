@@ -257,7 +257,7 @@ func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...in
 	if sr.Superstate != nil {
 		triggers = append(triggers, sr.Superstate.PermittedTriggers(ctx, args...)...)
 		// remove duplicated
-		seen := make(map[string]struct{}, len(triggers))
+		seen := make(map[Trigger]struct{}, len(triggers))
 		j := 0
 		for _, v := range triggers {
 			if _, ok := seen[v]; ok {

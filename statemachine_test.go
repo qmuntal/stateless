@@ -32,7 +32,7 @@ func TestStateMachine_NewStateMachine(t *testing.T) {
 }
 
 func TestStateMachine_NewStateMachineWithExternalStorage(t *testing.T) {
-	state := stateB
+	var state State = stateB
 	sm := NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
 		return state, nil
 	}, func(_ context.Context, s State) error {
@@ -453,4 +453,103 @@ func TestStateMachine_Fire_PanicsWhenPermitDyanmicIfHasMultipleNonExclusiveGuard
 		}, func(_ context.Context, args ...interface{}) bool { return args[0].(int) == 2 })
 
 	assert.Panics(t, func() { sm.Fire(triggerX, 2) })
+}
+
+func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithSuperStateTrue(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateD, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 3
+		})
+
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		Permit(triggerX, stateC, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 2
+		})
+
+	sm.Fire(triggerX, 3)
+
+	assert.Equal(t, stateD, sm.MustState())
+}
+
+func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithSuperStateFalse(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(0))
+	sm.Configure(stateA).
+		Permit(triggerX, stateD, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 3
+		})
+
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		Permit(triggerX, stateC, func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 2
+		})
+
+	sm.Fire(triggerX, 2)
+
+	assert.Equal(t, stateC, sm.MustState())
+}
+
+func TestStateMachine_Fire_TransitionToSuperstateDoesNotExitSuperstate(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	var superExit, superEntry, subExit bool
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			superEntry = true
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			superExit = true
+			return nil
+		})
+
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		Permit(triggerY, stateA).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			subExit = true
+			return nil
+		})
+
+	sm.Fire(triggerY)
+
+	assert.True(t, subExit)
+	assert.False(t, superEntry)
+	assert.False(t, superExit)
+}
+
+func TestStateMachine_Fire_OnExitFiresOnlyOnceReentrySubstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var exitB, exitA, entryB, entryA int
+	sm.Configure(stateA).
+		SubstateOf(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			entryA += 1
+			return nil
+		}).
+		PermitReentry(triggerX).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			exitA += 1
+			return nil
+		})
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			entryB += 1
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			exitB += 1
+			return nil
+		})
+
+	sm.Fire(triggerX)
+
+	// assert.Equal(t, 0, exitB)
+	// assert.Equal(t, 0, entryB)
+	// assert.Equal(t, 1, exitA)
+	// assert.Equal(t, 1, entryA)
 }

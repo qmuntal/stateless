@@ -8,10 +8,10 @@ import (
 )
 
 // State is used to to represent the possible machine states.
-type State = string
+type State = interface{}
 
 // Trigger is used to represent the triggers that cause state transitions.
-type Trigger = string
+type Trigger = interface{}
 
 // FiringMode enumerate the different modes used when Fire-ing a trigger.
 type FiringMode uint8

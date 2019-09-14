@@ -30,9 +30,8 @@ const (
 
 func Example() {
 	phoneCall := stateless.NewStateMachine(stateOffHook)
-	phoneCall.
-		SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0)).
-		SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
+	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
+	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
 	phoneCall.Configure(stateOffHook).
 		Permit(triggerCallDialed, stateRinging)

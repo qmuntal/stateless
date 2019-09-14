@@ -663,3 +663,129 @@ func TestStateMachine_Deactivate_Idempotent(t *testing.T) {
 
 	assert.Empty(t, actualOrdering)
 }
+
+func TestStateMachine_Activate_Transitioning(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+	expectedOrdering := []string{"ActivatedA",
+		"DeactivatedA", "ExitedA", "OnTransitioned", "EnteredB", "ActivatedB",
+		"DeactivatedB", "ExitedB", "OnTransitioned", "EnteredA", "ActivatedA"}
+
+	sm.Configure(stateA).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedA")
+			return nil
+		}).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedA")
+			return nil
+		}).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnteredA")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitedA")
+			return nil
+		}).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedB")
+			return nil
+		}).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedB")
+			return nil
+		}).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnteredB")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitedB")
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	// should not be called for activation
+	sm.OnTransitioned(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	sm.Activate()
+	sm.Fire(triggerX)
+	sm.Fire(triggerY)
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Fire_ImmediateEntryAProcessedBeforeEnterB(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringImmediate)
+
+	var actualOrdering []string
+	expectedOrdering := []string{"ExitA", "ExitB", "EnterA", "EnterB"}
+
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnterA")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitA")
+			return nil
+		}).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			sm.Fire(triggerY)
+			actualOrdering = append(actualOrdering, "EnterB")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitB")
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	sm.Fire(triggerX)
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringQueued)
+
+	var actualOrdering []string
+	expectedOrdering := []string{"ExitA", "EnterB", "ExitB", "EnterA"}
+
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnterA")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitA")
+			return nil
+		}).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			sm.Fire(triggerY)
+			actualOrdering = append(actualOrdering, "EnterB")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitB")
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	sm.Fire(triggerX)
+
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}

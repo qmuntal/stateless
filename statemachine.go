@@ -267,6 +267,7 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
 	if sm.firing {
 		sm.eventQueue.PushBack(queuedTrigger{Trigger: trigger, Args: args})
+		return nil
 	}
 	sm.firing = true
 	defer func() { sm.firing = false }()

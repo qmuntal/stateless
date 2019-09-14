@@ -128,6 +128,7 @@ func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuard
 	assert.NotNil(t, handler)
 	assert.False(t, sub.CanHandle(context.Background(), triggerX))
 	assert.False(t, super.CanHandle(context.Background(), triggerX))
+	assert.False(t, handler.Handler.GuardConditionMet(context.Background()))
 }
 
 func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardConditions_CanBeFired(t *testing.T) {

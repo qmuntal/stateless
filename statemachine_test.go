@@ -2,6 +2,7 @@ package stateless
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -224,6 +225,17 @@ func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(
 	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
 
 	assert.Panics(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
+}
+
+func TestStateMachine_SetTriggerParameters_Invalid(t *testing.T) {
+	sm := NewStateMachine(stateB)
+
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
+	sm.Configure(stateB).Permit(triggerX, stateA)
+
+	assert.Panics(t, func() { sm.Fire(triggerX) })
+	assert.Panics(t, func() { sm.Fire(triggerX, "1", "2", "3") })
+	assert.Panics(t, func() { sm.Fire(triggerX, "1", "2") })
 }
 
 func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
@@ -583,6 +595,32 @@ func TestStateMachine_Activate(t *testing.T) {
 	assert.Equal(t, expectedOrdering, actualOrdering)
 }
 
+func TestStateMachine_Activate_Error(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedA")
+			return errors.New("")
+		})
+
+	sm.Configure(stateC).
+		OnActive(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "ActivatedC")
+			return nil
+		})
+
+	// should not be called for activation
+	sm.OnTransitioned(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	assert.Error(t, sm.Activate())
+}
+
 func TestStateMachine_Activate_Idempotent(t *testing.T) {
 	sm := NewStateMachine(stateA)
 
@@ -636,6 +674,51 @@ func TestStateMachine_Deactivate(t *testing.T) {
 	sm.Deactivate()
 
 	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Deactivate_NoActivated(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedA")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedC")
+			return nil
+		})
+
+	sm.Deactivate()
+
+	assert.Zero(t, actualOrdering)
+}
+
+func TestStateMachine_Deactivate_Error(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	var actualOrdering []string
+
+	sm.Configure(stateA).
+		SubstateOf(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedA")
+			return errors.New("")
+		})
+
+	sm.Configure(stateC).
+		OnDeactivate(func(_ context.Context) error {
+			actualOrdering = append(actualOrdering, "DeactivatedC")
+			return nil
+		})
+
+	sm.Activate()
+	assert.Error(t, sm.Deactivate())
 }
 
 func TestStateMachine_Deactivate_Idempotent(t *testing.T) {

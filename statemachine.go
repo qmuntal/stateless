@@ -232,15 +232,15 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 }
 
 // String returns a human-readable representation of the state machine.
+// It is not guaranteed that the order of the PermittedTriggers is the same in consecutive executions.
 func (sm *StateMachine) String() string {
 	state, err := sm.State(context.Background())
 	if err != nil {
 		return ""
 	}
-	triggers, err := sm.PermittedTriggers()
-	if err != nil {
-		return ""
-	}
+
+	// PermittedTriggers only returns an error if state accessor returns one, and it has already been checked.
+	triggers, _ := sm.PermittedTriggers()
 	return fmt.Sprintf("StateMachine {{ State = %v, PermittedTriggers = %v }}", state, triggers)
 }
 
@@ -324,7 +324,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
 		err = sm.handleReentryTrigger(ctx, representativeState, transition, args...)
 	case *dynamicTriggerBehaviour:
-		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
+		destination, ok := t.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
 			err = fmt.Errorf("stateless: Dynamic handler for trigger %s in state %s has failed", trigger, source)
 		} else {
@@ -332,13 +332,8 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}
 	case *transitioningTriggerBehaviour:
-		destination, ok := result.Handler.ResultsInTransitionFrom(ctx, source, args...)
-		if !ok {
-			err = fmt.Errorf("stateless: Transition handler for trigger %s in state %s has failed", trigger, source)
-		} else {
-			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
-			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
-		}
+		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
+		err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 	case *internalTriggerBehaviour:
 		var sr *stateRepresentation
 		sr, err = sm.currentState(ctx)

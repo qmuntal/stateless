@@ -977,6 +977,48 @@ func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
 	assert.Equal(t, expectedOrdering, actualOrdering)
 }
 
+func TestStateMachine_Fire_Queued_ErrorExit(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringQueued)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			sm.Fire(triggerY)
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			return errors.New("")
+		}).
+		Permit(triggerY, stateA)
+
+	sm.Fire(triggerX)
+
+	assert.Error(t, sm.Fire(triggerX))
+}
+
+func TestStateMachine_Fire_Queued_ErrorEnter(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringQueued)
+
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			return errors.New("")
+		}).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			sm.Fire(triggerY)
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	sm.Fire(triggerX)
+
+	assert.Error(t, sm.Fire(triggerX))
+}
+
 func TestStateMachine_InternalTransition_StayInSameStateOneState(t *testing.T) {
 	sm := NewStateMachine(stateA)
 	sm.Configure(stateB).
@@ -1124,8 +1166,8 @@ func TestStateMachine_String(t *testing.T) {
 		{"error state", NewStateMachineWithExternalStorage(func(_ context.Context) (State, error) {
 			return nil, errors.New("status error")
 		}, func(_ context.Context, s State) error { return nil }, FiringImmediate), ""},
-		{"triggers", NewStateMachine(stateB).Configure(stateB).Permit(triggerX, stateA).Permit(triggerY, stateC).Machine(),
-			"StateMachine {{ State = B, PermittedTriggers = [X Y] }}"},
+		{"triggers", NewStateMachine(stateB).Configure(stateB).Permit(triggerX, stateA).Machine(),
+			"StateMachine {{ State = B, PermittedTriggers = [X] }}"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

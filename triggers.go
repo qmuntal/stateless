@@ -67,7 +67,6 @@ func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...inter
 type triggerBehaviour interface {
 	GuardConditionMet(context.Context, ...interface{}) bool
 	UnmetGuardConditions(context.Context, ...interface{}) []string
-	ResultsInTransitionFrom(context.Context, State, ...interface{}) (State, bool)
 	GetTrigger() Trigger
 }
 
@@ -92,26 +91,14 @@ type ignoredTriggerBehaviour struct {
 	baseTriggerBehaviour
 }
 
-func (t *ignoredTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, _ State, _ ...interface{}) (st State, ok bool) {
-	return
-}
-
 type reentryTriggerBehaviour struct {
 	baseTriggerBehaviour
 	Destination State
 }
 
-func (t *reentryTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, _ State, _ ...interface{}) (State, bool) {
-	return t.Destination, true
-}
-
 type transitioningTriggerBehaviour struct {
 	baseTriggerBehaviour
 	Destination State
-}
-
-func (t *transitioningTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, _ State, _ ...interface{}) (State, bool) {
-	return t.Destination, true
 }
 
 type dynamicTriggerBehaviour struct {
@@ -131,10 +118,6 @@ func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _
 type internalTriggerBehaviour struct {
 	baseTriggerBehaviour
 	Action ActionFunc
-}
-
-func (t *internalTriggerBehaviour) ResultsInTransitionFrom(_ context.Context, source State, _ ...interface{}) (State, bool) {
-	return source, false
 }
 
 func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {

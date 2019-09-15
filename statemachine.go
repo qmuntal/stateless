@@ -341,8 +341,6 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 			transition := Transition{Source: source, Destination: source, Trigger: trigger}
 			err = sr.InternalAction(ctx, transition, args...)
 		}
-	default:
-		panic("stateless: State machine configuration incorrect, no handler for trigger.")
 	}
 	return
 }

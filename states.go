@@ -31,23 +31,10 @@ func (a actionBehaviourSteady) Execute(ctx context.Context) error {
 	return a.Action(ctx)
 }
 
-type superset interface {
-	FindHandler(context.Context, Trigger, ...interface{}) (triggerBehaviourResult, bool)
-	Activate(context.Context) error
-	Deactivate(context.Context) error
-	Enter(context.Context, Transition, ...interface{}) error
-	Exit(context.Context, Transition) error
-	IsIncludedInState(State) bool
-	PermittedTriggers(context.Context, ...interface{}) []Trigger
-	state() State
-	superstate() superset
-	findHandler(context.Context, Trigger, ...interface{}) (triggerBehaviourResult, bool)
-}
-
 type stateRepresentation struct {
 	State                   State
 	InitialTransitionTarget State
-	Superstate              superset
+	Superstate              *stateRepresentation
 	Active                  bool
 	EntryActions            []actionBehaviour
 	ExitActions             []actionBehaviour
@@ -72,10 +59,6 @@ func (sr *stateRepresentation) SetInitialTransition(state State) {
 
 func (sr *stateRepresentation) state() State {
 	return sr.State
-}
-
-func (sr *stateRepresentation) superstate() superset {
-	return sr.Superstate
 }
 
 func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
@@ -200,7 +183,7 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) 
 
 func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Transition, args ...interface{}) error {
 	var internalTransition *internalTriggerBehaviour
-	var stateRep superset = sr
+	var stateRep *stateRepresentation = sr
 	for stateRep != nil {
 		if result, ok := stateRep.findHandler(ctx, transition.Trigger, args...); ok {
 			switch t := result.Handler.(type) {
@@ -209,7 +192,7 @@ func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Tr
 			}
 			break
 		}
-		stateRep = stateRep.superstate()
+		stateRep = stateRep.Superstate
 	}
 	if internalTransition == nil {
 		panic("stateless: The configuration is incorrect, no action assigned to this internal transition.")

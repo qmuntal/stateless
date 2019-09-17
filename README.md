@@ -38,7 +38,7 @@ phoneCall.Configure(stateConnected).
 phoneCall.Fire(triggerCallDialed, "qmuntal")
 ```
 
-This project, as well as the example above, is almost a direct port of [dotnet-state-machine/stateless](https://github.com/dotnet-state-machine/stateless), which is written in C#.
+This project, as well as the example above, is almost a direct, yet idiomatic, port of [dotnet-state-machine/stateless](https://github.com/dotnet-state-machine/stateless), which is written in C#.
 
 ## Features
 

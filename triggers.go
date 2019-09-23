@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 )
 
 type invocationInfo struct {
@@ -12,8 +13,14 @@ type invocationInfo struct {
 }
 
 func newinvocationInfo(method interface{}) invocationInfo {
+	funcName := runtime.FuncForPC(reflect.ValueOf(method).Pointer()).Name()
+	nameParts := strings.Split(funcName, ".")
+	var name string
+	if len(nameParts) != 0 {
+		name = nameParts[len(nameParts)-1]
+	}
 	return invocationInfo{
-		Method: runtime.FuncForPC(reflect.ValueOf(method).Pointer()).Name(),
+		Method: name,
 	}
 }
 

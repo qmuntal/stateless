@@ -47,13 +47,11 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 func (g *graph) formatOneState(sr *stateRepresentation) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\t%s [label=\"%s", sr.State, sr.State))
-	if len(sr.EntryActions) == 0 && len(sr.ExitActions) == 0 &&
-		len(sr.ActivateActions) == 0 && len(sr.DeactivateActions) == 0 {
-		sb.WriteString("\"];\n")
-		return sb.String()
+	act := g.formatActions(sr)
+	if act != "" {
+		sb.WriteString("|")
+		sb.WriteString(act)
 	}
-	sb.WriteString("|")
-	sb.WriteString(g.formatActions(sr))
 	sb.WriteString("\"];\n")
 	return sb.String()
 }

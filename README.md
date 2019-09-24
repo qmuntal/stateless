@@ -33,7 +33,7 @@ phoneCall.Configure(stateConnected).
     Permit(triggerLeftMessage, stateOffHook).
     Permit(triggerPlacedOnHold, stateOnHold)
 
-// .. 
+// ...
 
 phoneCall.Fire(triggerCallDialed, "qmuntal")
 ```
@@ -44,17 +44,18 @@ This project, as well as the example above, is almost a direct, yet idiomatic, p
 
 Most standard state machine constructs are supported:
 
- * Support for states and triggers of any comparable type (int, strings, boolean, structs, etc.)
- * Hierarchical states
- * Entry/exit events for states
- * Guard clauses to support conditional transitions
- * Introspection
+* Support for states and triggers of any comparable type (int, strings, boolean, structs, etc.)
+* Hierarchical states
+* Entry/exit events for states
+* Guard clauses to support conditional transitions
+* Introspection
 
 Some useful extensions are also provided:
 
- * Ability to store state externally (for example, in a property tracked by an ORM)
- * Parameterised triggers
- * Reentrant states
+* Ability to store state externally (for example, in a property tracked by an ORM)
+* Parameterised triggers
+* Reentrant states
+* Export to DOT graph
 
 ### Hierarchical States
 
@@ -155,3 +156,25 @@ By default, triggers must be ignored explicitly. To override Stateless's default
 ```go
 stateMachine.OnUnhandledTrigger( func (_ context.Context, state State, _ Trigger, _ []string) {})
 ```
+
+### Export to DOT graph
+
+It can be useful to visualize state machines on runtime. With this approach the code is the authoritative source and state diagrams are by-products which are always up to date.
+
+```go
+sm := stateMachine.Configure(stateOffHook).
+    Permit(triggerCallDialed, stateRinging, isValidNumber)
+graph := sm.ToGraph()
+```
+
+The StateMachine.ToGraph() method returns a string representation of the state machine in the DOT graph language, e.g.:
+
+digraph {
+  OffHook -> Ringing [label="CallDialled [isValidNumber]"];
+}
+
+This can then be rendered by tools that support the DOT graph language, such as the dot command line tool from graphviz.org or viz.js. See [webgraphviz.com](http://www.webgraphviz.com) for instant gratification. Command line example: dot -T pdf -o phoneCall.pdf phoneCall.dot to generate a PDF file.
+
+This is the complete Phone Call graph as builded in `example_test.go`.
+
+![Phone Call graph](assets/phone-graph.png?raw=true "Phone Call complete DOT")

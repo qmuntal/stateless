@@ -114,7 +114,8 @@ func (sc *StateConfiguration) PermitDynamic(trigger Trigger, destinationSelector
 // OnActive specify an action that will execute when activating the configured state.
 func (sc *StateConfiguration) OnActive(action func(context.Context) error) *StateConfiguration {
 	sc.sr.ActivateActions = append(sc.sr.ActivateActions, actionBehaviourSteady{
-		Action: action,
+		Action:      action,
+		Description: newinvocationInfo(action),
 	})
 	return sc
 }
@@ -122,7 +123,8 @@ func (sc *StateConfiguration) OnActive(action func(context.Context) error) *Stat
 // OnDeactivate specify an action that will execute when deactivating the configured state.
 func (sc *StateConfiguration) OnDeactivate(action func(context.Context) error) *StateConfiguration {
 	sc.sr.DeactivateActions = append(sc.sr.DeactivateActions, actionBehaviourSteady{
-		Action: action,
+		Action:      action,
+		Description: newinvocationInfo(action),
 	})
 	return sc
 }

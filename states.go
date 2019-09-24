@@ -24,7 +24,8 @@ func (a actionBehaviour) Execute(ctx context.Context, transition Transition, arg
 }
 
 type actionBehaviourSteady struct {
-	Action func(ctx context.Context) error
+	Action      func(ctx context.Context) error
+	Description invocationInfo
 }
 
 func (a actionBehaviourSteady) Execute(ctx context.Context) error {

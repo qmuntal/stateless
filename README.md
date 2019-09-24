@@ -169,9 +169,11 @@ graph := sm.ToGraph()
 
 The StateMachine.ToGraph() method returns a string representation of the state machine in the DOT graph language, e.g.:
 
+```dot
 digraph {
   OffHook -> Ringing [label="CallDialled [isValidNumber]"];
 }
+```
 
 This can then be rendered by tools that support the DOT graph language, such as the dot command line tool from graphviz.org or viz.js. See [webgraphviz.com](http://www.webgraphviz.com) for instant gratification. Command line example: dot -T pdf -o phoneCall.pdf phoneCall.dot to generate a PDF file.
 

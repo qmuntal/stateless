@@ -34,6 +34,12 @@ func (g *graph) formatOneState(sr *stateRepresentation) string {
 	}
 	sb.WriteString("|")
 	es := make([]string, 0, len(sr.EntryActions)+len(sr.ExitActions))
+	for _, act := range sr.ActivateActions {
+		es = append(es, fmt.Sprintf("activated / %s", act.Description.String()))
+	}
+	for _, act := range sr.DeactivateActions {
+		es = append(es, fmt.Sprintf("deactivated / %s", act.Description.String()))
+	}
 	for _, act := range sr.EntryActions {
 		if act.Trigger == nil {
 			es = append(es, fmt.Sprintf("enter / %s", act.Description.String()))

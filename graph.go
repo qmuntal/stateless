@@ -80,17 +80,16 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 			case *reentryTriggerBehaviour:
 				var actions []string
 				for _, ea := range sr.EntryActions {
-					if ea.Trigger == nil || ea.Trigger == t.Trigger {
+					if ea.Trigger == t.Trigger {
 						actions = append(actions, ea.Description.String())
 					}
-
 				}
 				sb.WriteString(g.formatOneTransition(sr.State, t.Destination, t.Trigger, actions, t.Guard))
 			case *transitioningTriggerBehaviour:
 				var actions []string
 				dest := sm.stateConfig[t.Destination]
 				for _, ea := range dest.EntryActions {
-					if ea.Trigger == nil || ea.Trigger == t.Trigger {
+					if ea.Trigger == t.Trigger {
 						actions = append(actions, ea.Description.String())
 					}
 				}

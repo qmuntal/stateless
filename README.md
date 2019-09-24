@@ -178,3 +178,11 @@ This can then be rendered by tools that support the DOT graph language, such as 
 This is the complete Phone Call graph as builded in `example_test.go`.
 
 ![Phone Call graph](assets/phone-graph.png?raw=true "Phone Call complete DOT")
+
+## Project Goals
+
+This page is an almost-complete description of Stateless, and its explicit aim is to remain minimal.
+
+Please use the issue tracker or the if you'd like to report problems or discuss features.
+
+(_Why the name? Stateless implements the set of rules regarding state transitions, but, at least when the delegate version of the constructor is used, doesn't maintain any internal state itself._)

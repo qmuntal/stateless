@@ -42,7 +42,7 @@ func (g *graph) formatOneState(sr *stateRepresentation) string {
 	}
 	for _, act := range sr.EntryActions {
 		if act.Trigger == nil {
-			es = append(es, fmt.Sprintf("enter / %s", act.Description.String()))
+			es = append(es, fmt.Sprintf("entry / %s", act.Description.String()))
 		}
 	}
 	for _, act := range sr.ExitActions {

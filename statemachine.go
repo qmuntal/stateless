@@ -100,6 +100,10 @@ func NewStateMachineWithExternalStorage(stateAccessor func(context.Context) (Sta
 	return sm
 }
 
+func (sm *StateMachine) ToGraph() string {
+	return new(graph).FormatStateMachine(sm)
+}
+
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
 	return sm.stateAccessor(ctx)

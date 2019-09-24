@@ -44,10 +44,7 @@ func Example() {
 		Permit(triggerCallConnected, stateConnected)
 
 	phoneCall.Configure(stateConnected).
-		OnEntry(func(_ context.Context, _ ...interface{}) error {
-			startCallTimer()
-			return nil
-		}).
+		OnEntry(startCallTimer).
 		OnExit(func(_ context.Context, _ ...interface{}) error {
 			stopCallTimer()
 			return nil
@@ -83,6 +80,7 @@ func Example() {
 	phoneCall.Fire(triggerPlacedOnHold)
 	phoneCall.Fire(triggerPhoneHurledAgainstWall)
 	fmt.Printf("State is %s\n", phoneCall.MustState())
+	phoneCall.ToGraph()
 
 	// Output:
 	// [Phone Call] placed for : [qmuntal]
@@ -112,8 +110,9 @@ func onDialed(callee string) {
 	fmt.Printf("[Phone Call] placed for : [%s]\n", callee)
 }
 
-func startCallTimer() {
+func startCallTimer(_ context.Context, _ ...interface{}) error {
 	fmt.Println("[Timer:] Call started at 11:00am")
+	return nil
 }
 
 func stopCallTimer() {

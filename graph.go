@@ -25,15 +25,8 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	return sb.String()
 }
 
-func (g *graph) formatOneState(sr *stateRepresentation) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\t%s [label=\"%s", sr.State, sr.State))
-	if len(sr.EntryActions) == 0 && len(sr.ExitActions) == 0 {
-		sb.WriteString("\"];\n")
-		return sb.String()
-	}
-	sb.WriteString("|")
-	es := make([]string, 0, len(sr.EntryActions)+len(sr.ExitActions))
+func (g *graph) formatActions(sr *stateRepresentation) string {
+	es := make([]string, 0, len(sr.EntryActions)+len(sr.ExitActions)+len(sr.ActivateActions)+len(sr.DeactivateActions))
 	for _, act := range sr.ActivateActions {
 		es = append(es, fmt.Sprintf("activated / %s", act.Description.String()))
 	}
@@ -48,7 +41,19 @@ func (g *graph) formatOneState(sr *stateRepresentation) string {
 	for _, act := range sr.ExitActions {
 		es = append(es, fmt.Sprintf("exit / %s", act.Description.String()))
 	}
-	sb.WriteString(strings.Join(es, "\n"))
+	return strings.Join(es, "\n")
+}
+
+func (g *graph) formatOneState(sr *stateRepresentation) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("\t%s [label=\"%s", sr.State, sr.State))
+	if len(sr.EntryActions) == 0 && len(sr.ExitActions) == 0 &&
+		len(sr.ActivateActions) == 0 && len(sr.DeactivateActions) == 0 {
+		sb.WriteString("\"];\n")
+		return sb.String()
+	}
+	sb.WriteString("|")
+	sb.WriteString(g.formatActions(sr))
 	sb.WriteString("\"];\n")
 	return sb.String()
 }
@@ -56,16 +61,10 @@ func (g *graph) formatOneState(sr *stateRepresentation) string {
 func (g *graph) formatOneCluster(sr *stateRepresentation) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\nsubgraph cluster_%s {\n\tlabel=\"%s", sr.State, sr.State))
-	if len(sr.EntryActions) > 0 || len(sr.ExitActions) > 0 {
-		sb.WriteString("\\n----------")
-		for _, act := range sr.EntryActions {
-			if act.Trigger == nil {
-				sb.WriteString("\\nentry / " + act.Description.String())
-			}
-		}
-		for _, act := range sr.ExitActions {
-			sb.WriteString("\\nexit / " + act.Description.String())
-		}
+	act := g.formatActions(sr)
+	if act != "" {
+		sb.WriteString("\n----------\n")
+		sb.WriteString(act)
 	}
 	sb.WriteString("\";\n")
 	for _, substate := range sr.Substates {

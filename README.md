@@ -6,6 +6,7 @@
 [![codecov](https://coveralls.io/repos/github/qmuntal/stateless/badge.svg)](https://coveralls.io/github/qmuntal/stateless?branch=master)
 [![codeclimate](https://codeclimate.com/github/qmuntal/stateless/badges/gpa.svg)](https://codeclimate.com/github/qmuntal/stateless)
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/MIT)
+[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)  
 
 **Create *state machines* and lightweight *state machine-based workflows* directly in Go code:**
 

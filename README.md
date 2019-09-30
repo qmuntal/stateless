@@ -56,6 +56,7 @@ Some useful extensions are also provided:
 * Ability to store state externally (for example, in a property tracked by an ORM)
 * Parameterised triggers
 * Reentrant states
+* Thread-safe
 * Export to DOT graph
 
 ### Hierarchical States

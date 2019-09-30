@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sync"
 )
 
 // State is used to to represent the possible machine states.
@@ -49,9 +50,9 @@ func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigg
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
-//
-// stateAccessor will be called to read the current state value.
-// stateMutator will be called to write new state values.
+// Reading and writing to the state store is protected by mutual exclusion locks,
+// therefore it is safe to use the StateMachine concurrently. All the other actions (OnEntry, OnActivate, ...) are not thread-safe and is
+// up to the client to decide if it is necessary to protected them.
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]TriggerWithParameters
@@ -62,6 +63,8 @@ type StateMachine struct {
 	eventQueue             *list.List
 	firingMode             FiringMode
 	firing                 bool
+	firingMutex            sync.Mutex
+	stateMutex             sync.Mutex
 }
 
 func newStateMachine() *StateMachine {
@@ -108,6 +111,8 @@ func (sm *StateMachine) ToGraph() string {
 
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
+	sm.stateMutex.Lock()
+	defer sm.stateMutex.Unlock()
 	return sm.stateAccessor(ctx)
 }
 
@@ -214,8 +219,7 @@ func (sm *StateMachine) Fire(trigger Trigger, args ...interface{}) error {
 
 // FireCtx transition from the current state via the specified trigger.
 // The target state is determined by the configuration of the current state.
-// Actions associated with leaving the current state and entering the new one
-// will be invoked.
+// Actions associated with leaving the current state and entering the new one will be invoked.
 func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	return sm.internalFire(ctx, trigger, args...)
 }
@@ -251,6 +255,8 @@ func (sm *StateMachine) String() string {
 }
 
 func (sm *StateMachine) setState(ctx context.Context, state State) error {
+	sm.stateMutex.Lock()
+	defer sm.stateMutex.Unlock()
 	return sm.stateMutator(ctx, state)
 }
 
@@ -284,12 +290,19 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 }
 
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
+	sm.firingMutex.Lock()
 	if sm.firing {
 		sm.eventQueue.PushBack(queuedTrigger{Trigger: trigger, Args: args})
+		sm.firingMutex.Unlock()
 		return nil
 	}
 	sm.firing = true
-	defer func() { sm.firing = false }()
+	sm.firingMutex.Unlock()
+	defer func() {
+		sm.firingMutex.Lock()
+		sm.firing = false
+		sm.firingMutex.Unlock()
+	}()
 	err = sm.internalFireOne(ctx, trigger, args...)
 	if err != nil {
 		return

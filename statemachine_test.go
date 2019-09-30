@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -974,6 +975,49 @@ func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
 
 	sm.Fire(triggerX)
 
+	assert.Equal(t, expectedOrdering, actualOrdering)
+}
+
+func TestStateMachine_Fire_Race(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringImmediate)
+
+	var actualOrdering []string
+	expectedOrdering := []string{"ExitA", "ExitB", "EnterA", "EnterB"}
+
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnterA")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitA")
+			return nil
+		}).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			sm.Fire(triggerY)
+			actualOrdering = append(actualOrdering, "EnterB")
+			return nil
+		}).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitB")
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		sm.Fire(triggerX)
+		wg.Done()
+	}()
+	go func() {
+		sm.Fire(triggerX)
+		wg.Done()
+	}()
+	wg.Wait()
 	assert.Equal(t, expectedOrdering, actualOrdering)
 }
 

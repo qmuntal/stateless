@@ -983,14 +983,18 @@ func TestStateMachine_Fire_Race(t *testing.T) {
 
 	var actualOrdering []string
 	expectedOrdering := []string{"ExitA", "ExitB", "EnterA", "EnterB"}
-
+	var mu sync.Mutex
 	sm.Configure(stateA).
 		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			mu.Lock()
 			actualOrdering = append(actualOrdering, "EnterA")
+			mu.Unlock()
 			return nil
 		}).
 		OnExit(func(_ context.Context, _ ...interface{}) error {
+			mu.Lock()
 			actualOrdering = append(actualOrdering, "ExitA")
+			mu.Unlock()
 			return nil
 		}).
 		Permit(triggerX, stateB)
@@ -998,11 +1002,15 @@ func TestStateMachine_Fire_Race(t *testing.T) {
 	sm.Configure(stateB).
 		OnEntry(func(_ context.Context, _ ...interface{}) error {
 			sm.Fire(triggerY)
+			mu.Lock()
 			actualOrdering = append(actualOrdering, "EnterB")
+			mu.Unlock()
 			return nil
 		}).
 		OnExit(func(_ context.Context, _ ...interface{}) error {
+			mu.Lock()
 			actualOrdering = append(actualOrdering, "ExitB")
+			mu.Unlock()
 			return nil
 		}).
 		Permit(triggerY, stateA)

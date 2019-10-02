@@ -982,7 +982,6 @@ func TestStateMachine_Fire_Race(t *testing.T) {
 	sm := NewStateMachineWithMode(stateA, FiringImmediate)
 
 	var actualOrdering []string
-	expectedOrdering := []string{"ExitA", "ExitB", "EnterA", "EnterB"}
 	var mu sync.Mutex
 	sm.Configure(stateA).
 		OnEntry(func(_ context.Context, _ ...interface{}) error {
@@ -1022,11 +1021,11 @@ func TestStateMachine_Fire_Race(t *testing.T) {
 		wg.Done()
 	}()
 	go func() {
-		sm.Fire(triggerX)
+		sm.Fire(triggerZ)
 		wg.Done()
 	}()
 	wg.Wait()
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	assert.Len(t, actualOrdering, 4)
 }
 
 func TestStateMachine_Fire_Queued_ErrorExit(t *testing.T) {

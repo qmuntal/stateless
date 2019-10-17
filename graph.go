@@ -97,8 +97,10 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 				sb.WriteString(g.formatOneTransition(sr.State, sr.State, t.Trigger, actions, t.Guard))
 			case *transitioningTriggerBehaviour:
-				dest := sm.stateConfig[t.Destination]
-				actions := g.getEntryActions(dest.EntryActions, t.Trigger)
+				var actions []string
+				if dest, ok := sm.stateConfig[t.Destination]; ok {
+					actions = g.getEntryActions(dest.EntryActions, t.Trigger)
+				}
 				sb.WriteString(g.formatOneTransition(sr.State, t.Destination, t.Trigger, actions, t.Guard))
 			case *dynamicTriggerBehaviour:
 				// TODO: not supported yet

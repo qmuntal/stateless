@@ -50,9 +50,8 @@ func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigg
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
-// Reading and writing to the state store is protected by mutual exclusion locks,
-// therefore it is safe to use the StateMachine concurrently. All the other actions (OnEntry, OnActivate, ...) are not thread-safe and is
-// up to the client to decide if it is necessary to protected them.
+// It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
+// so it is up to the client to protect them against race conditions.
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]TriggerWithParameters
@@ -64,7 +63,6 @@ type StateMachine struct {
 	firingMode             FiringMode
 	firing                 bool
 	firingMutex            sync.Mutex
-	stateMutex             sync.Mutex
 }
 
 func newStateMachine() *StateMachine {
@@ -83,10 +81,17 @@ func NewStateMachine(initialState State) *StateMachine {
 
 // NewStateMachineWithMode returns a state machine with the desired firing mode
 func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMachine {
+	var stateMutex sync.Mutex
 	sm := newStateMachine()
 	reference := &stateReference{State: initialState}
-	sm.stateAccessor = func(_ context.Context) (State, error) { return reference.State, nil }
+	sm.stateAccessor = func(_ context.Context) (State, error) {
+		stateMutex.Lock()
+		defer stateMutex.Unlock()
+		return reference.State, nil
+	}
 	sm.stateMutator = func(_ context.Context, state State) error {
+		stateMutex.Lock()
+		defer stateMutex.Unlock()
 		reference.State = state
 		return nil
 	}
@@ -111,8 +116,6 @@ func (sm *StateMachine) ToGraph() string {
 
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
-	sm.stateMutex.Lock()
-	defer sm.stateMutex.Unlock()
 	return sm.stateAccessor(ctx)
 }
 
@@ -255,8 +258,6 @@ func (sm *StateMachine) String() string {
 }
 
 func (sm *StateMachine) setState(ctx context.Context, state State) error {
-	sm.stateMutex.Lock()
-	defer sm.stateMutex.Unlock()
 	return sm.stateMutator(ctx, state)
 }
 

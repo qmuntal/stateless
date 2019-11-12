@@ -108,7 +108,7 @@ phoneCall.Configure(stateOffHook).
     Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return !IsValidNumber()})
 ```
 
-Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time.) Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.
+Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time). Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.
 
 The guard clauses will be evaluated whenever a trigger is fired. Guards should therefor be made side effect free.
 

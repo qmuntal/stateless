@@ -16,23 +16,23 @@ phoneCall := stateless.NewStateMachine(stateOffHook)
 phoneCall.Configure(stateOffHook).Permit(triggerCallDialed, stateRinging)
 
 phoneCall.Configure(stateRinging).
-    OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
-        onDialed(args[0].(string))
-        return nil
-    }).
-    Permit(triggerCallConnected, stateConnected)
+  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+    onDialed(args[0].(string))
+    return nil
+  }).
+  Permit(triggerCallConnected, stateConnected)
 
 phoneCall.Configure(stateConnected).
-    OnEntry(func(_ context.Context, _ ...interface{}) error {
-        startCallTimer()
-        return nil
-    }).
-    OnExit(func(_ context.Context, _ ...interface{}) error {
-        stopCallTimer()
-        return nil
-    }).
-    Permit(triggerLeftMessage, stateOffHook).
-    Permit(triggerPlacedOnHold, stateOnHold)
+  OnEntry(func(_ context.Context, _ ...interface{}) error {
+    startCallTimer()
+    return nil
+  }).
+  OnExit(func(_ context.Context, _ ...interface{}) error {
+    stopCallTimer()
+    return nil
+  }).
+  Permit(triggerLeftMessage, stateOffHook).
+  Permit(triggerPlacedOnHold, stateOnHold)
 
 // ...
 
@@ -65,8 +65,8 @@ In the example below, the `OnHold` state is a substate of the `Connected` state.
 
 ```go
 phoneCall.Configure(stateOnHold).SubstateOf(stateConnected).
-    Permit(triggerTakenOffHold, stateConnected).
-    Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
+  Permit(triggerTakenOffHold, stateConnected).
+  Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 ```
 
 In addition to the `StateMachine.State` property, which will report the precise current state, an `IsInState(State)` method is provided. `IsInState(State)` will take substates into account, so that if the example above was in the `OnHold` state, `IsInState(State.Connected)` would also evaluate to `true`.
@@ -85,10 +85,10 @@ Stateless is designed to be embedded in various application models. For example,
 
 ```go
 stateMachine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
-    return myState.Value, nil
+  return myState.Value, nil
 }, func(_ context.Context, state stateless.State) error {
-    myState.Value  = state
-    return nil
+  myState.Value  = state
+  return nil
 }, stateless.FiringQueued)
 ```
 
@@ -104,8 +104,8 @@ The state machine will choose between multiple transitions based on guard clause
 
 ```go
 phoneCall.Configure(stateOffHook).
-    Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()}).
-    Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return !IsValidNumber()})
+  Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()}).
+  Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return !IsValidNumber()})
 ```
 
 Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time). Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.
@@ -120,8 +120,8 @@ Strongly-typed parameters can be assigned to triggers:
 stateMachine.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
 stateMachine.Configure(stateRinging).OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
-    fmt.Println(args[0].(string))
-    return nil
+  fmt.Println(args[0].(string))
+  return nil
 })
 
 stateMachine.Fire(triggerCallDialed, "qmuntal")
@@ -139,18 +139,18 @@ To ignore triggers within certain states, use the `Ignore(Trigger)` directive:
 
 ```go
 phoneCall.Configure(stateConnected).
-    Ignore(triggerCallDialled)
+  Ignore(triggerCallDialled)
 ```
 
 Alternatively, a state can be marked reentrant so its entry and exit events will fire even when transitioning from/to itself:
 
 ```go
 stateMachine.Configure(stateAssigned).
-    PermitReentry(triggerAssigned).
-    OnEntry(func(_ context.Context, _ ...interface{}) error {
-        startCallTimer()
-        return nil
-    })
+  PermitReentry(triggerAssigned).
+  OnEntry(func(_ context.Context, _ ...interface{}) error {
+    startCallTimer()
+    return nil
+  })
 ```
 
 By default, triggers must be ignored explicitly. To override Stateless's default behaviour of throwing a panic when an unhandled trigger is fired, configure the state machine using the `OnUnhandledTrigger` method:
@@ -165,7 +165,7 @@ It can be useful to visualize state machines on runtime. With this approach the 
 
 ```go
 sm := stateMachine.Configure(stateOffHook).
-    Permit(triggerCallDialed, stateRinging, isValidNumber)
+  Permit(triggerCallDialed, stateRinging, isValidNumber)
 graph := sm.ToGraph()
 ```
 

@@ -1,12 +1,15 @@
-# stateless
+<p align="center"><img width="650" src="./assets/stateless.svg" alt="Stateless logo"></p>
 
-[![Documentation](https://godoc.org/github.com/qmuntal/stateless?status.svg)](https://godoc.org/github.com/qmuntal/stateless)
-[![Build Status](https://travis-ci.com/qmuntal/stateless.svg?branch=master)](https://travis-ci.com/qmuntal/stateless)
-[![Go Report Card](https://goreportcard.com/badge/github.com/qmuntal/stateless)](https://goreportcard.com/report/github.com/qmuntal/stateless)
-[![codecov](https://coveralls.io/repos/github/qmuntal/stateless/badge.svg)](https://coveralls.io/github/qmuntal/stateless?branch=master)
-[![codeclimate](https://codeclimate.com/github/qmuntal/stateless/badges/gpa.svg)](https://codeclimate.com/github/qmuntal/stateless)
-[![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)](https://opensource.org/licenses/MIT)
-[![Mentioned in Awesome Go](https://awesome.re/mentioned-badge.svg)](https://github.com/avelino/awesome-go)  
+<p align="center">
+    <a href="https://travis-ci.com/qmuntal/stateless"><img src="https://travis-ci.com/qmuntal/stateless.svg?branch=master" alt="Build Status"></a>
+    <a href="https://coveralls.io/github/qmuntal/stateless"><img src="https://coveralls.io/repos/github/qmuntal/stateless/badge.svg" alt="Code Coverage"></a>
+    <a href="https://goreportcard.com/badge/github.com/qmuntal/stateless"><img src="https://goreportcard.com/badge/github.com/qmuntal/stateless" alt="Go Report Card"></a>
+    <a href="https://pkg.go.dev/github.com/qmuntal/stateless?tab=doc"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" alt="go.dev"></a>
+    <a href="https://opensource.org/licenses/BSD-2-Clause"><img src="https://img.shields.io/badge/License-BSD%202--Clause-orange.svg" alt="Licenses"></a>
+    <a href="https://github.com/avelino/awesome-go"><img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Go"></a>
+</p>
+
+# Stateless
 
 **Create *state machines* and lightweight *state machine-based workflows* directly in Go code:**
 

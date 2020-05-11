@@ -3,7 +3,7 @@
 <p align="center">
     <a href="https://travis-ci.com/qmuntal/stateless"><img src="https://travis-ci.com/qmuntal/stateless.svg?branch=master" alt="Build Status. Fire gopher designed by https://www.deviantart.com/quasilyte"></a>
     <a href="https://coveralls.io/github/qmuntal/stateless"><img src="https://coveralls.io/repos/github/qmuntal/stateless/badge.svg" alt="Code Coverage"></a>
-    <a href="https://goreportcard.com/badge/github.com/qmuntal/stateless"><img src="https://goreportcard.com/badge/github.com/qmuntal/stateless" alt="Go Report Card"></a>
+    <a href="https://goreportcard.com/report/github.com/qmuntal/stateless"><img src="https://goreportcard.com/badge/github.com/qmuntal/stateless" alt="Go Report Card"></a>
     <a href="https://pkg.go.dev/github.com/qmuntal/stateless?tab=doc"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" alt="go.dev"></a>
     <a href="https://opensource.org/licenses/BSD-2-Clause"><img src="https://img.shields.io/badge/License-BSD%202--Clause-orange.svg" alt="Licenses"></a>
     <a href="https://github.com/avelino/awesome-go"><img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Go"></a>

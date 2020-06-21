@@ -36,7 +36,6 @@ type stateRepresentation struct {
 	State                   State
 	InitialTransitionTarget State
 	Superstate              *stateRepresentation
-	Active                  bool
 	EntryActions            []actionBehaviour
 	ExitActions             []actionBehaviour
 	ActivateActions         []actionBehaviourSteady
@@ -110,33 +109,23 @@ func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger,
 	return
 }
 
-func (sr *stateRepresentation) Activate(ctx context.Context) (err error) {
+func (sr *stateRepresentation) Activate(ctx context.Context) error {
 	if sr.Superstate != nil {
-		err = sr.Superstate.Activate(ctx)
+		if err := sr.Superstate.Activate(ctx); err != nil {
+			return err
+		}
 	}
-	if sr.Active || err != nil {
-		return
-	}
-	err = sr.executeActivationActions(ctx)
-	if err == nil {
-		sr.Active = true
-	}
-	return
+	return sr.executeActivationActions(ctx)
 }
 
-func (sr *stateRepresentation) Deactivate(ctx context.Context) (err error) {
-	if !sr.Active {
-		return
+func (sr *stateRepresentation) Deactivate(ctx context.Context) error {
+	if err := sr.executeDeactivationActions(ctx); err != nil {
+		return err
 	}
-	err = sr.executeDeactivationActions(ctx)
-	if err != nil {
-		return
-	}
-	sr.Active = false
 	if sr.Superstate != nil {
-		err = sr.Superstate.Deactivate(ctx)
+		return sr.Superstate.Deactivate(ctx)
 	}
-	return
+	return nil
 }
 
 func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
@@ -149,9 +138,6 @@ func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition,
 	}
 	if err == nil {
 		err = sr.executeEntryActions(ctx, transition, args...)
-		if err == nil {
-			err = sr.executeActivationActions(ctx)
-		}
 	}
 	return
 }
@@ -162,10 +148,7 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) 
 		return
 	}
 
-	err = sr.executeDeactivationActions(ctx)
-	if err == nil {
-		err = sr.executeExitActions(ctx, transition)
-	}
+	err = sr.executeExitActions(ctx, transition)
 	// Must check if there is a superstate, and if we are leaving that superstate
 	if err == nil && !isReentry && sr.Superstate != nil {
 		// Check if destination is within the state list

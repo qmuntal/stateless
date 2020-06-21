@@ -15,11 +15,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Test
-      run: go test -race -covermode atomic -coverprofile=profile.cov ./...
+      run: go test -race -covermode atomic -coverprofile profile.cov ./...
     - name: Send coverage
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         GO111MODULE=off go get github.com/mattn/goveralls
-        $(go env GOPATH)/bin/goveralls -coverprofile=profile.cov -service=github
+        $(go env GOPATH)/bin/goveralls -coverprofile profile.cov -service github
 

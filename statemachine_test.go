@@ -745,10 +745,8 @@ func TestStateMachine_Activate_Idempotent(t *testing.T) {
 		})
 
 	sm.Activate()
-	actualOrdering = make([]string, 0)
-	sm.Activate()
 
-	assert.Empty(t, actualOrdering)
+	assert.Len(t, actualOrdering, 2)
 }
 
 func TestStateMachine_Deactivate(t *testing.T) {
@@ -801,7 +799,7 @@ func TestStateMachine_Deactivate_NoActivated(t *testing.T) {
 
 	sm.Deactivate()
 
-	assert.Zero(t, actualOrdering)
+	assert.Equal(t, actualOrdering, []string{"DeactivatedA", "DeactivatedC"})
 }
 
 func TestStateMachine_Deactivate_Error(t *testing.T) {
@@ -856,9 +854,8 @@ func TestStateMachine_Activate_Transitioning(t *testing.T) {
 	sm := NewStateMachine(stateA)
 
 	var actualOrdering []string
-	expectedOrdering := []string{"ActivatedA",
-		"DeactivatedA", "ExitedA", "OnTransitioned", "EnteredB", "ActivatedB",
-		"DeactivatedB", "ExitedB", "OnTransitioned", "EnteredA", "ActivatedA"}
+	expectedOrdering := []string{"ActivatedA", "ExitedA", "OnTransitioned", "EnteredB",
+		"ExitedB", "OnTransitioned", "EnteredA"}
 
 	sm.Configure(stateA).
 		OnActive(func(_ context.Context) error {

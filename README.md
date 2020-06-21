@@ -1,7 +1,7 @@
-<p align="center"><img width="650" src="./assets/stateless.svg" alt="Stateless logo"></p>
+<p align="center"><img width="650" src="./assets/stateless.svg" alt="Stateless logo. Fire gopher designed by https://www.deviantart.com/quasilyte"></p>
 
 <p align="center">
-    <a href="https://travis-ci.com/qmuntal/stateless"><img src="https://travis-ci.com/qmuntal/stateless.svg?branch=master" alt="Build Status. Fire gopher designed by https://www.deviantart.com/quasilyte"></a>
+    <a href="https://github.com/qmuntal/stateless/actions?query=workflow%3ATest"><img src="https://github.com/qmuntal/stateless/workflows/Test/badge.svg" alt="Build Status"></a>
     <a href="https://coveralls.io/github/qmuntal/stateless"><img src="https://coveralls.io/repos/github/qmuntal/stateless/badge.svg" alt="Code Coverage"></a>
     <a href="https://goreportcard.com/report/github.com/qmuntal/stateless"><img src="https://goreportcard.com/badge/github.com/qmuntal/stateless" alt="Go Report Card"></a>
     <a href="https://pkg.go.dev/github.com/qmuntal/stateless?tab=doc"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" alt="go.dev"></a>

@@ -1,6 +1,7 @@
 package stateless
 
 import (
+	"context"
 	"fmt"
 	"strings"
 )
@@ -20,6 +21,11 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	}
 	for _, sr := range sm.stateConfig {
 		sb.WriteString(g.formatAllStateTransitions(sm, sr))
+	}
+	initialState, err := sm.State(context.Background())
+	if err == nil {
+		sb.WriteString("\n init [label=\"\", shape=point];")
+		sb.WriteString(fmt.Sprintf("\n init -> {%s}[style = \"solid\"]", initialState))
 	}
 	sb.WriteString("\n}")
 	return sb.String()

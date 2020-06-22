@@ -69,6 +69,8 @@ func Example() {
 		Permit(triggerTakenOffHold, stateConnected).
 		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 
+	phoneCall.ToGraph()
+
 	phoneCall.Fire(triggerCallDialed, "qmuntal")
 	phoneCall.Fire(triggerCallConnected)
 	phoneCall.Fire(triggerSetVolume, 2)
@@ -80,7 +82,6 @@ func Example() {
 	phoneCall.Fire(triggerPlacedOnHold)
 	phoneCall.Fire(triggerPhoneHurledAgainstWall)
 	fmt.Printf("State is %s\n", phoneCall.MustState())
-	phoneCall.ToGraph()
 
 	// Output:
 	// [Phone Call] placed for : [qmuntal]

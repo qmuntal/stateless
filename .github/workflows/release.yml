@@ -12,6 +12,7 @@ jobs:
         fetch-depth: '0'
     - name: Bump version and push tag
       uses: anothrNick/github-tag-action@1.22.0
+      id: bump_tag
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         WITH_V: true
@@ -22,7 +23,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
+        tag_name: ${{ steps.bump_tag.outputs.new_tag }}
+        release_name: ${{ steps.bump_tag.outputs.new_tag }}
         draft: false
         prerelease: false

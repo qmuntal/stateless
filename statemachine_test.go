@@ -975,6 +975,23 @@ func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
 	assert.Equal(t, expectedOrdering, actualOrdering)
 }
 
+func TestStateMachine_Fire_QueuedEntryAsyncFire(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringQueued)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
+			go sm.Fire(triggerY)
+			go sm.Fire(triggerY)
+			return nil
+		}).
+		Permit(triggerY, stateA)
+
+	sm.Fire(triggerX)
+}
+
 func TestStateMachine_Fire_Race(t *testing.T) {
 	sm := NewStateMachineWithMode(stateA, FiringImmediate)
 

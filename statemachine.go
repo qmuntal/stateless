@@ -308,14 +308,21 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	if err != nil {
 		return
 	}
-	for sm.eventQueue.Len() != 0 {
-		e := sm.eventQueue.Front()
+
+	sm.firingMutex.Lock()
+	e := sm.eventQueue.Front()
+	sm.firingMutex.Unlock()
+
+	for e != nil {
 		et := e.Value.(queuedTrigger)
 		err = sm.internalFireOne(ctx, et.Trigger, et.Args...)
 		if err != nil {
 			break
 		}
+		sm.firingMutex.Lock()
 		sm.eventQueue.Remove(e)
+		e = sm.eventQueue.Front()
+		sm.firingMutex.Unlock()
 	}
 	return
 }

@@ -87,7 +87,7 @@ Entry/Exit event handlers can be supplied with a parameter of type `Transition` 
 Stateless is designed to be embedded in various application models. For example, some ORMs place requirements upon where mapped data may be stored, and UI frameworks often require state to be stored in special "bindable" properties. To this end, the `StateMachine` constructor can accept function arguments that will be used to read and write the state values:
 
 ```go
-stateMachine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
+machine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
   return myState.Value, nil
 }, func(_ context.Context, state stateless.State) error {
   myState.Value  = state
@@ -107,8 +107,12 @@ The state machine will choose between multiple transitions based on guard clause
 
 ```go
 phoneCall.Configure(stateOffHook).
-  Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {return IsValidNumber()}).
-  Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {return !IsValidNumber()})
+  Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {
+    return IsValidNumber()
+  }).
+  Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {
+    return !IsValidNumber()
+  })
 ```
 
 Guard clauses within a state must be mutually exclusive (multiple guard clauses cannot be valid at the same time). Substates can override transitions by respecifying them, however substates cannot disallow transitions that are allowed by the superstate.
@@ -122,10 +126,11 @@ Strongly-typed parameters can be assigned to triggers:
 ```go
 stateMachine.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
-stateMachine.Configure(stateRinging).OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
-  fmt.Println(args[0].(string))
-  return nil
-})
+stateMachine.Configure(stateRinging).
+  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+    fmt.Println(args[0].(string))
+    return nil
+  })
 
 stateMachine.Fire(triggerCallDialed, "qmuntal")
 ```

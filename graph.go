@@ -47,7 +47,7 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 	for _, act := range sr.ExitActions {
 		es = append(es, fmt.Sprintf("exit / %s", act.Description.String()))
 	}
-	return strings.Join(es, "\n")
+	return strings.Join(es, `\n`)
 }
 
 func (g *graph) formatOneState(sr *stateRepresentation) string {

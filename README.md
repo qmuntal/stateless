@@ -44,6 +44,8 @@ phoneCall.Fire(triggerCallDialed, "qmuntal")
 
 This project, as well as the example above, is almost a direct, yet idiomatic, port of [dotnet-state-machine/stateless](https://github.com/dotnet-state-machine/stateless), which is written in C#.
 
+The state machine implemented in this library is based on the theory of [UML statechart](https://en.wikipedia.org/wiki/UML_state_machine). The concepts behind it are about organizing the way a device, computer program, or other (often technical) process works such that an entity or each of its sub-entities is always in exactly one of a number of possible states and where there are well-defined conditional transitions between these states.
+
 ## Features
 
 Most standard state machine constructs are supported:
@@ -67,7 +69,8 @@ Some useful extensions are also provided:
 In the example below, the `OnHold` state is a substate of the `Connected` state. This means that an `OnHold` call is still connected.
 
 ```go
-phoneCall.Configure(stateOnHold).SubstateOf(stateConnected).
+phoneCall.Configure(stateOnHold).
+  SubstateOf(stateConnected).
   Permit(triggerTakenOffHold, stateConnected).
   Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 ```
@@ -81,6 +84,18 @@ In the example, the `StartCallTimer()` method will be executed when a call is co
 The call can move between the `Connected` and `OnHold` states without the `StartCallTimer()` and `StopCallTimer()` methods being called repeatedly because the `OnHold` state is a substate of the `Connected` state.
 
 Entry/Exit event handlers can be supplied with a parameter of type `Transition` that describes the trigger, source and destination states.
+
+### Initial state transitions
+
+A substate can be marked as initial state. When the state machine enters the super state it will also automatically enter the substate. This can be configured like this:
+
+```go
+sm.Configure(State.B)
+  .InitialTransition(State.C);
+
+sm.Configure(State.C)
+  .SubstateOf(State.B);
+```
 
 ### External State Storage
 
@@ -96,6 +111,10 @@ machine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) 
 ```
 
 In this example the state machine will use the `myState` object for state storage.
+
+### Activation / Deactivation
+
+It might be necessary to perform some code before storing the object state, and likewise when restoring the object state. Use `Deactivate` and `Activate` for this. Activation should only be called once before normal operation starts, and once before state storage.
 
 ### Introspection
 

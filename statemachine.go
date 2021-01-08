@@ -30,6 +30,8 @@ type Transition struct {
 	Source      State
 	Destination State
 	Trigger     Trigger
+
+	isInitial bool
 }
 
 // IsReentry returns true if the transition is a re-entry,
@@ -37,6 +39,8 @@ type Transition struct {
 func (t *Transition) IsReentry() bool {
 	return t.Source == t.Destination
 }
+
+type TransitionFunc = func(context.Context, Transition)
 
 // UnhandledTriggerActionFunc defines a function that will be called when a trigger is not handled.
 type UnhandledTriggerActionFunc = func(ctx context.Context, state State, trigger Trigger, unmetGuards []string) error
@@ -58,7 +62,8 @@ type StateMachine struct {
 	stateAccessor          func(context.Context) (State, error)
 	stateMutator           func(context.Context, State) error
 	unhandledTriggerAction UnhandledTriggerActionFunc
-	onTransitionEvents     onTransitionEvents
+	onTransitioningEvents  onTransitionEvents
+	onTransitionedEvents   onTransitionEvents
 	eventQueue             *list.List
 	firingMode             FiringMode
 	firing                 bool
@@ -150,7 +155,7 @@ func (sm *StateMachine) Activate() error {
 	return sm.ActivateCtx(context.Background())
 }
 
-// ActivateCtx activates current state. Actions associated with activating the currrent state will be invoked.
+// ActivateCtx activates current state. Actions associated with activating the current state will be invoked.
 // The activation is idempotent and subsequent activation of the same current state
 // will not lead to re-execution of activation callbacks.
 func (sm *StateMachine) ActivateCtx(ctx context.Context) error {
@@ -166,7 +171,7 @@ func (sm *StateMachine) Deactivate() error {
 	return sm.DeactivateCtx(context.Background())
 }
 
-// DeactivateCtx deactivates current state. Actions associated with deactivating the currrent state will be invoked.
+// DeactivateCtx deactivates current state. Actions associated with deactivating the current state will be invoked.
 // The deactivation is idempotent and subsequent deactivation of the same current state
 // will not lead to re-execution of deactivation callbacks.
 func (sm *StateMachine) DeactivateCtx(ctx context.Context) error {
@@ -227,15 +232,21 @@ func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...in
 	return sm.internalFire(ctx, trigger, args...)
 }
 
-// OnTransitioned registers a callback that will be invoked every time the statemachine
-// transitions from one state into another.
-func (sm *StateMachine) OnTransitioned(onTransitionAction func(context.Context, Transition)) {
-	sm.onTransitionEvents = append(sm.onTransitionEvents, onTransitionAction)
+// OnTransitioned registers a callback that will be invoked every time the state machine
+// successfully finishes a transitions from one state into another.
+func (sm *StateMachine) OnTransitioned(fn ...TransitionFunc) {
+	sm.onTransitionedEvents = append(sm.onTransitionedEvents, fn...)
+}
+
+// OnTransitioning registers a callback that will be invoked every time the state machine
+// starts a transitions from one state into another.
+func (sm *StateMachine) OnTransitioning(fn ...TransitionFunc) {
+	sm.onTransitioningEvents = append(sm.onTransitioningEvents, fn...)
 }
 
 // OnUnhandledTrigger override the default behaviour of returning an error when an unhandled trigger.
-func (sm *StateMachine) OnUnhandledTrigger(onUnhandledTriggerAction UnhandledTriggerActionFunc) {
-	sm.unhandledTriggerAction = onUnhandledTriggerAction
+func (sm *StateMachine) OnUnhandledTrigger(fn UnhandledTriggerActionFunc) {
+	sm.unhandledTriggerAction = fn
 }
 
 // Configure begin configuration of the entry/exit actions and allowed transitions
@@ -372,40 +383,50 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	return
 }
 
-func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) (err error) {
-	err = sr.Exit(ctx, transition)
-	if err != nil {
-		return
+func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
+	if err := sr.Exit(ctx, transition); err != nil {
+		return err
 	}
-	representation := &stateRepresentation{}
 	newSr := sm.stateRepresentation(transition.Destination)
-	if transition.Source != transition.Destination {
+	if !transition.IsReentry() {
 		transition = Transition{Source: transition.Destination, Destination: transition.Destination, Trigger: transition.Trigger}
-		err = newSr.Exit(ctx, transition)
-		if err != nil {
-			return
+		if err := newSr.Exit(ctx, transition); err != nil {
+			return err
 		}
 	}
-	sm.onTransitionEvents.Invoke(ctx, transition)
-	representation, err = sm.enterState(ctx, newSr, transition, args...)
-	return sm.setState(ctx, representation.State)
+	sm.onTransitioningEvents.Invoke(ctx, transition)
+	rep, err := sm.enterState(ctx, newSr, transition, args...)
+	if err != nil {
+		return err
+	}
+	if err := sm.setState(ctx, rep.State); err != nil {
+		return err
+	}
+	sm.onTransitionedEvents.Invoke(ctx, transition)
+	return nil
 }
 
-func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) (err error) {
-	err = sr.Exit(ctx, transition)
-	if err != nil {
-		return
+func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
+	if err := sr.Exit(ctx, transition); err != nil {
+		return err
 	}
-	sm.setState(ctx, transition.Destination)
+	sm.onTransitioningEvents.Invoke(ctx, transition)
+	if err := sm.setState(ctx, transition.Destination); err != nil {
+		return err
+	}
 	newSr := sm.stateRepresentation(transition.Destination)
-
-	//Alert all listeners of state transition
-	sm.onTransitionEvents.Invoke(ctx, transition)
-	newSr, err = sm.enterState(ctx, newSr, transition, args...)
+	rep, err := sm.enterState(ctx, newSr, transition, args...)
 	if err != nil {
-		return
+		return err
 	}
-	return sm.setState(ctx, newSr.State)
+	// Check if state has changed by entering new state (by firing triggers in OnEntry or such)
+	if rep.State != newSr.State {
+		if err := sm.setState(ctx, rep.State); err != nil {
+			return err
+		}
+	}
+	sm.onTransitionedEvents.Invoke(ctx, transition)
+	return nil
 }
 
 func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) (*stateRepresentation, error) {
@@ -428,7 +449,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 		if !isValidForInitialState {
 			panic(fmt.Sprintf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget))
 		}
-		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger}
+		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger, isInitial: true}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)
 		sr, err = sm.enterState(ctx, sr, initialTranslation, args...)
 	}

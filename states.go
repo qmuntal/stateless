@@ -128,18 +128,19 @@ func (sr *stateRepresentation) Deactivate(ctx context.Context) error {
 	return nil
 }
 
-func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) (err error) {
-	isReentry := transition.IsReentry()
-	if !isReentry && sr.IncludeState(transition.Source) {
-		return
+func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) error {
+	if transition.IsReentry() {
+		return sr.executeEntryActions(ctx, transition, args...)
 	}
-	if !isReentry && sr.Superstate != nil {
-		err = sr.Superstate.Enter(ctx, transition, args...)
+	if sr.IncludeState(transition.Source) {
+		return nil
 	}
-	if err == nil {
-		err = sr.executeEntryActions(ctx, transition, args...)
+	if sr.Superstate != nil && !transition.isInitial {
+		if err := sr.Superstate.Enter(ctx, transition, args...); err != nil {
+			return err
+		}
 	}
-	return
+	return sr.executeEntryActions(ctx, transition, args...)
 }
 
 func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) (err error) {

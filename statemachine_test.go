@@ -27,8 +27,8 @@ func TestTransition_IsReentry(t *testing.T) {
 		t    *Transition
 		want bool
 	}{
-		{"TransitionIsNotChange", &Transition{"1", "1", "0"}, true},
-		{"TransitionIsChange", &Transition{"1", "2", "0"}, false},
+		{"TransitionIsNotChange", &Transition{"1", "1", "0", false}, true},
+		{"TransitionIsChange", &Transition{"1", "2", "0", false}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -327,6 +327,22 @@ func TestStateMachine_SetTriggerParameters_Invalid(t *testing.T) {
 	assert.Panics(t, func() { sm.Fire(triggerX, "1", "2") })
 }
 
+func TestStateMachine_OnTransitioning_EventFires(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.Configure(stateB).Permit(triggerX, stateA)
+
+	var transition Transition
+	sm.OnTransitioning(func(_ context.Context, tr Transition) {
+		transition = tr
+	})
+	sm.Fire(triggerX)
+
+	assert.NotZero(t, transition)
+	assert.Equal(t, triggerX, transition.Trigger)
+	assert.Equal(t, stateB, transition.Source)
+	assert.Equal(t, stateA, transition.Destination)
+}
+
 func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	sm.Configure(stateB).Permit(triggerX, stateA)
@@ -345,7 +361,7 @@ func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
 
 func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.T) {
 	sm := NewStateMachine(stateB)
-	expectedOrdering := []string{"OnExit", "OnTransitioned", "OnEntry"}
+	expectedOrdering := []string{"OnExit", "OnTransitioning", "OnEntry", "OnTransitioned"}
 	var actualOrdering []string
 
 	sm.Configure(stateB).Permit(triggerX, stateA).OnExit(func(_ context.Context, args ...interface{}) error {
@@ -360,6 +376,9 @@ func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.
 		return nil
 	})
 
+	sm.OnTransitioning(func(_ context.Context, tr Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioning")
+	})
 	sm.OnTransitioned(func(_ context.Context, tr Transition) {
 		actualOrdering = append(actualOrdering, "OnTransitioned")
 	})
@@ -691,6 +710,9 @@ func TestStateMachine_Activate(t *testing.T) {
 		})
 
 	// should not be called for activation
+	sm.OnTransitioning(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioning")
+	})
 	sm.OnTransitioned(func(_ context.Context, _ Transition) {
 		actualOrdering = append(actualOrdering, "OnTransitioned")
 	})
@@ -717,11 +739,6 @@ func TestStateMachine_Activate_Error(t *testing.T) {
 			actualOrdering = append(actualOrdering, "ActivatedC")
 			return nil
 		})
-
-	// should not be called for activation
-	sm.OnTransitioned(func(_ context.Context, _ Transition) {
-		actualOrdering = append(actualOrdering, "OnTransitioned")
-	})
 
 	assert.Error(t, sm.Activate())
 }
@@ -769,6 +786,9 @@ func TestStateMachine_Deactivate(t *testing.T) {
 		})
 
 	// should not be called for activation
+	sm.OnTransitioning(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioning")
+	})
 	sm.OnTransitioned(func(_ context.Context, _ Transition) {
 		actualOrdering = append(actualOrdering, "OnTransitioned")
 	})
@@ -854,8 +874,8 @@ func TestStateMachine_Activate_Transitioning(t *testing.T) {
 	sm := NewStateMachine(stateA)
 
 	var actualOrdering []string
-	expectedOrdering := []string{"ActivatedA", "ExitedA", "OnTransitioned", "EnteredB",
-		"ExitedB", "OnTransitioned", "EnteredA"}
+	expectedOrdering := []string{"ActivatedA", "ExitedA", "OnTransitioning", "EnteredB", "OnTransitioned",
+		"ExitedB", "OnTransitioning", "EnteredA", "OnTransitioned"}
 
 	sm.Configure(stateA).
 		OnActive(func(_ context.Context) error {
@@ -895,7 +915,9 @@ func TestStateMachine_Activate_Transitioning(t *testing.T) {
 		}).
 		Permit(triggerY, stateA)
 
-	// should not be called for activation
+	sm.OnTransitioning(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioning")
+	})
 	sm.OnTransitioned(func(_ context.Context, _ Transition) {
 		actualOrdering = append(actualOrdering, "OnTransitioned")
 	})
@@ -1169,6 +1191,47 @@ func TestStateMachine_InitialTransition_EntersSubStateofSubstate(t *testing.T) {
 
 	sm.Fire(triggerX)
 	assert.Equal(t, stateD, sm.MustState())
+}
+
+func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
+	var actualOrdering []string
+	expectedOrdering := []string{"ExitA", "OnTransitioning", "EnterB", "EnterC", "OnTransitioned"}
+
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB).
+		OnExit(func(c context.Context, i ...interface{}) error {
+			actualOrdering = append(actualOrdering, "ExitA")
+			return nil
+		})
+
+	sm.Configure(stateB).
+		InitialTransition(stateC).
+		OnEntry(func(c context.Context, i ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnterB")
+			return nil
+		})
+
+	sm.Configure(stateC).
+		SubstateOf(stateB).
+		OnEntry(func(c context.Context, i ...interface{}) error {
+			actualOrdering = append(actualOrdering, "EnterC")
+			return nil
+		})
+
+	sm.OnTransitioning(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioning")
+	})
+	sm.OnTransitioned(func(_ context.Context, _ Transition) {
+		actualOrdering = append(actualOrdering, "OnTransitioned")
+	})
+
+	sm.Fire(triggerX)
+	assert.Equal(t, stateC, sm.MustState())
+
+	assert.Equal(t, len(expectedOrdering), len(actualOrdering))
+	assert.Equal(t, expectedOrdering, actualOrdering)
 }
 
 func TestStateMachine_InitialTransition_DoesNotEnterSubStateofSubstate(t *testing.T) {

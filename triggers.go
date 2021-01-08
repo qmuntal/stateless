@@ -154,7 +154,7 @@ func (t TriggerWithParameters) validateParameters(args ...interface{}) {
 	}
 }
 
-type onTransitionEvents []func(context.Context, Transition)
+type onTransitionEvents []TransitionFunc
 
 func (e onTransitionEvents) Invoke(ctx context.Context, transition Transition) {
 	for _, event := range e {

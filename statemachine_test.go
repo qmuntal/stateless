@@ -3,6 +3,7 @@ package stateless
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"testing"
@@ -1195,7 +1196,7 @@ func TestStateMachine_InitialTransition_EntersSubStateofSubstate(t *testing.T) {
 
 func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
 	var actualOrdering []string
-	expectedOrdering := []string{"ExitA", "OnTransitioning", "EnterB", "EnterC", "OnTransitioned"}
+	expectedOrdering := []string{"ExitA", "OnTransitioningAB", "EnterB", "OnTransitioningBC", "EnterC", "OnTransitionedAC"}
 
 	sm := NewStateMachine(stateA)
 
@@ -1220,11 +1221,11 @@ func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
 			return nil
 		})
 
-	sm.OnTransitioning(func(_ context.Context, _ Transition) {
-		actualOrdering = append(actualOrdering, "OnTransitioning")
+	sm.OnTransitioning(func(_ context.Context, tr Transition) {
+		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioning%s%s", tr.Source, tr.Destination))
 	})
-	sm.OnTransitioned(func(_ context.Context, _ Transition) {
-		actualOrdering = append(actualOrdering, "OnTransitioned")
+	sm.OnTransitioned(func(_ context.Context, tr Transition) {
+		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioned%s%s", tr.Source, tr.Destination))
 	})
 
 	sm.Fire(triggerX)

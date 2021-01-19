@@ -425,7 +425,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 			return err
 		}
 	}
-	sm.onTransitionedEvents.Invoke(ctx, transition)
+	sm.onTransitionedEvents.Invoke(ctx, Transition{transition.Source, rep.State, transition.Trigger, false})
 	return nil
 }
 
@@ -451,6 +451,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger, isInitial: true}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)
+		sm.onTransitioningEvents.Invoke(ctx, Transition{transition.Destination, initialTranslation.Destination, transition.Trigger, false})
 		sr, err = sm.enterState(ctx, sr, initialTranslation, args...)
 	}
 	return sr, err

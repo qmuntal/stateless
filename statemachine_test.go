@@ -1261,6 +1261,15 @@ func TestStateMachine_InitialTransition_DoNotAllowTransitionToSelf(t *testing.T)
 	})
 }
 
+func TestStateMachine_InitialTransition_WithMultipleSubStates(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	sm.Configure(stateA).Permit(triggerX, stateB)
+	sm.Configure(stateB).InitialTransition(stateC)
+	sm.Configure(stateC).SubstateOf(stateB)
+	sm.Configure(stateD).SubstateOf(stateB)
+	assert.NoError(t, sm.Fire(triggerX))
+}
+
 func TestStateMachine_InitialTransition_DoNotAllowTransitionToAnotherSuperstate(t *testing.T) {
 	sm := NewStateMachine(stateA)
 

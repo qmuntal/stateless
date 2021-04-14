@@ -437,12 +437,12 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 	}
 	// Recursively enter substates that have an initial transition
 	if sr.HasInitialState {
-		isValidForInitialState := len(sr.Substates) != 0
+		isValidForInitialState := false
 		for _, substate := range sr.Substates {
 			// Verify that the target state is a substate
 			// Check if state has substate(s), and if an initial transition(s) has been set up.
-			if substate.State != sr.InitialTransitionTarget {
-				isValidForInitialState = false
+			if substate.State == sr.InitialTransitionTarget {
+				isValidForInitialState = true
 				break
 			}
 		}

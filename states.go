@@ -143,24 +143,24 @@ func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition,
 	return sr.executeEntryActions(ctx, transition, args...)
 }
 
-func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition) (err error) {
+func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition, args ...interface{}) (err error) {
 	isReentry := transition.IsReentry()
 	if !isReentry && sr.IncludeState(transition.Destination) {
 		return
 	}
 
-	err = sr.executeExitActions(ctx, transition)
+	err = sr.executeExitActions(ctx, transition, args...)
 	// Must check if there is a superstate, and if we are leaving that superstate
 	if err == nil && !isReentry && sr.Superstate != nil {
 		// Check if destination is within the state list
 		if sr.IsIncludedInState(transition.Destination) {
 			// Destination state is within the list, exit first superstate only if it is NOT the the first
 			if sr.Superstate.state() != transition.Destination {
-				err = sr.Superstate.Exit(ctx, transition)
+				err = sr.Superstate.Exit(ctx, transition, args...)
 			}
 		} else {
 			// Exit the superstate as well
-			err = sr.Superstate.Exit(ctx, transition)
+			err = sr.Superstate.Exit(ctx, transition, args...)
 		}
 	}
 	return

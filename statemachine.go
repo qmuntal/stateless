@@ -384,13 +384,13 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 }
 
 func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
-	if err := sr.Exit(ctx, transition); err != nil {
+	if err := sr.Exit(ctx, transition, args...); err != nil {
 		return err
 	}
 	newSr := sm.stateRepresentation(transition.Destination)
 	if !transition.IsReentry() {
 		transition = Transition{Source: transition.Destination, Destination: transition.Destination, Trigger: transition.Trigger}
-		if err := newSr.Exit(ctx, transition); err != nil {
+		if err := newSr.Exit(ctx, transition, args...); err != nil {
 			return err
 		}
 	}
@@ -407,7 +407,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 }
 
 func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
-	if err := sr.Exit(ctx, transition); err != nil {
+	if err := sr.Exit(ctx, transition, args...); err != nil {
 		return err
 	}
 	sm.onTransitioningEvents.Invoke(ctx, transition)

@@ -116,7 +116,7 @@ func NewStateMachineWithExternalStorage(stateAccessor func(context.Context) (Sta
 // ToGraph returns the DOT representation of the state machine.
 // It is not guaranteed that the returned string will be the same in different executions.
 func (sm *StateMachine) ToGraph() string {
-	return new(graph).FormatStateMachine(sm)
+	return newGraph().FormatStateMachine(sm)
 }
 
 // State returns the current state.

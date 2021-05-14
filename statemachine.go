@@ -228,6 +228,13 @@ func (sm *StateMachine) Fire(trigger Trigger, args ...interface{}) error {
 // FireCtx transition from the current state via the specified trigger.
 // The target state is determined by the configuration of the current state.
 // Actions associated with leaving the current state and entering the new one will be invoked.
+//
+// An error is returned if any of the state machine actions or the state callbacks return an error
+// without wrapping. It can also return an error if the trigger is not mapped to any state change,
+// being this error the one returned by `OnUnhandledTrigger` func.
+//
+// There is no rollback mechanism in case there is an action error after the state has been changed.
+// Guard clauses or error states can be used gracefully handle this situations.
 func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	return sm.internalFire(ctx, trigger, args...)
 }

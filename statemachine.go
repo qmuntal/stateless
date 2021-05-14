@@ -198,17 +198,17 @@ func (sm *StateMachine) IsInStateCtx(ctx context.Context, state State) (bool, er
 }
 
 // CanFire see CanFireCtx.
-func (sm *StateMachine) CanFire(trigger Trigger) (bool, error) {
-	return sm.CanFireCtx(context.Background(), trigger)
+func (sm *StateMachine) CanFire(trigger Trigger, args ...interface{}) (bool, error) {
+	return sm.CanFireCtx(context.Background(), trigger, args...)
 }
 
 // CanFireCtx returns true if the trigger can be fired in the current state.
-func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger) (bool, error) {
+func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger, args ...interface{}) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
 	}
-	return sr.CanHandle(ctx, trigger), nil
+	return sr.CanHandle(ctx, trigger, args...), nil
 }
 
 // SetTriggerParameters specify the arguments that must be supplied when a specific trigger is fired.

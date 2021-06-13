@@ -30,6 +30,7 @@ type Transition struct {
 	Source      State
 	Destination State
 	Trigger     Trigger
+	Arguments   []interface{}
 
 	isInitial bool
 }
@@ -366,24 +367,24 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	case *ignoredTriggerBehaviour:
 		// ignored
 	case *reentryTriggerBehaviour:
-		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
+		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger, Arguments: args}
 		err = sm.handleReentryTrigger(ctx, representativeState, transition, args...)
 	case *dynamicTriggerBehaviour:
 		destination, ok := t.ResultsInTransitionFrom(ctx, source, args...)
 		if !ok {
 			err = fmt.Errorf("stateless: Dynamic handler for trigger %s in state %s has failed", trigger, source)
 		} else {
-			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
+			transition := Transition{Source: source, Destination: destination, Trigger: trigger, Arguments: args}
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}
 	case *transitioningTriggerBehaviour:
-		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
+		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger, Arguments: args}
 		err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 	case *internalTriggerBehaviour:
 		var sr *stateRepresentation
 		sr, err = sm.currentState(ctx)
 		if err == nil {
-			transition := Transition{Source: source, Destination: source, Trigger: trigger}
+			transition := Transition{Source: source, Destination: source, Trigger: trigger, Arguments: args}
 			err = sr.InternalAction(ctx, transition, args...)
 		}
 	}
@@ -396,7 +397,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 	}
 	newSr := sm.stateRepresentation(transition.Destination)
 	if !transition.IsReentry() {
-		transition = Transition{Source: transition.Destination, Destination: transition.Destination, Trigger: transition.Trigger}
+		transition = Transition{Source: transition.Destination, Destination: transition.Destination, Trigger: transition.Trigger, Arguments: args}
 		if err := newSr.Exit(ctx, transition, args...); err != nil {
 			return err
 		}
@@ -432,7 +433,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 			return err
 		}
 	}
-	sm.onTransitionedEvents.Invoke(ctx, Transition{transition.Source, rep.State, transition.Trigger, false})
+	sm.onTransitionedEvents.Invoke(ctx, Transition{transition.Source, rep.State, transition.Trigger, args, false})
 	return nil
 }
 
@@ -456,9 +457,9 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 		if !isValidForInitialState {
 			panic(fmt.Sprintf("stateless: The target (%s) for the initial transition is not a substate.", sr.InitialTransitionTarget))
 		}
-		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger, isInitial: true}
+		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger, isInitial: true, Arguments: args}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)
-		sm.onTransitioningEvents.Invoke(ctx, Transition{transition.Destination, initialTranslation.Destination, transition.Trigger, false})
+		sm.onTransitioningEvents.Invoke(ctx, Transition{transition.Destination, initialTranslation.Destination, transition.Trigger, args, false})
 		sr, err = sm.enterState(ctx, sr, initialTranslation, args...)
 	}
 	return sr, err

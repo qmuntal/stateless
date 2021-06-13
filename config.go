@@ -19,10 +19,13 @@ func GetTransition(ctx context.Context) Transition {
 
 // ActionFunc describes a generic action function.
 // The context will always contain Transition information.
-type ActionFunc = func(context.Context, ...interface{}) error
+type ActionFunc = func(ctx context.Context, args ...interface{}) error
 
 // GuardFunc defines a generic guard function.
-type GuardFunc = func(context.Context, ...interface{}) bool
+type GuardFunc = func(ctx context.Context, args ...interface{}) bool
+
+// DestinationSelectorFunc defines a functions that is called to select a dynamic destination.
+type DestinationSelectorFunc = func(ctx context.Context, args ...interface{}) (State, error)
 
 // StateConfiguration is the configuration for a single state value.
 type StateConfiguration struct {
@@ -98,15 +101,14 @@ func (sc *StateConfiguration) Ignore(trigger Trigger, guards ...GuardFunc) *Stat
 }
 
 // PermitDynamic accept the specified trigger and transition to the destination state, calculated dynamically by the supplied function.
-func (sc *StateConfiguration) PermitDynamic(trigger Trigger, destinationSelector func(context.Context, ...interface{}) (State, error),
-	guards ...GuardFunc) *StateConfiguration {
+func (sc *StateConfiguration) PermitDynamic(trigger Trigger, selector DestinationSelectorFunc, guards ...GuardFunc) *StateConfiguration {
 	guardDescriptors := make([]invocationInfo, len(guards))
 	for i, guard := range guards {
 		guardDescriptors[i] = newinvocationInfo(guard)
 	}
 	sc.sr.AddTriggerBehaviour(&dynamicTriggerBehaviour{
 		baseTriggerBehaviour: baseTriggerBehaviour{Trigger: trigger, Guard: newtransitionGuard(guards...)},
-		Destination:          destinationSelector,
+		Destination:          selector,
 	})
 	return sc
 }

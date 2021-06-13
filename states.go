@@ -10,7 +10,7 @@ type stateReference struct {
 }
 
 type actionBehaviour struct {
-	Action      func(ctx context.Context, args ...interface{}) error
+	Action      ActionFunc
 	Description invocationInfo
 	Trigger     *Trigger
 }

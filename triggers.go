@@ -137,13 +137,13 @@ type triggerBehaviourResult struct {
 	UnmetGuardConditions []string
 }
 
-// TriggerWithParameters associates configured parameters with an underlying trigger value.
-type TriggerWithParameters struct {
+// triggerWithParameters associates configured parameters with an underlying trigger value.
+type triggerWithParameters struct {
 	Trigger       Trigger
 	ArgumentTypes []reflect.Type
 }
 
-func (t TriggerWithParameters) validateParameters(args ...interface{}) {
+func (t triggerWithParameters) validateParameters(args ...interface{}) {
 	if len(args) != len(t.ArgumentTypes) {
 		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}

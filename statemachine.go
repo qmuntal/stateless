@@ -58,7 +58,7 @@ func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigg
 // so it is up to the client to protect them against race conditions.
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation
-	triggerConfig          map[Trigger]TriggerWithParameters
+	triggerConfig          map[Trigger]triggerWithParameters
 	stateAccessor          func(context.Context) (State, error)
 	stateMutator           func(context.Context, State) error
 	unhandledTriggerAction UnhandledTriggerActionFunc
@@ -73,7 +73,7 @@ type StateMachine struct {
 func newStateMachine() *StateMachine {
 	return &StateMachine{
 		stateConfig:            make(map[State]*stateRepresentation),
-		triggerConfig:          make(map[Trigger]TriggerWithParameters),
+		triggerConfig:          make(map[Trigger]triggerWithParameters),
 		unhandledTriggerAction: UnhandledTriggerActionFunc(DefaultUnhandledTriggerAction),
 		eventQueue:             list.New(),
 	}
@@ -213,7 +213,7 @@ func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger, args ..
 
 // SetTriggerParameters specify the arguments that must be supplied when a specific trigger is fired.
 func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...reflect.Type) {
-	config := TriggerWithParameters{Trigger: trigger, ArgumentTypes: argumentTypes}
+	config := triggerWithParameters{Trigger: trigger, ArgumentTypes: argumentTypes}
 	if _, ok := sm.triggerConfig[config.Trigger]; ok {
 		panic(fmt.Sprintf("stateless: Parameters for the trigger '%s' have already been configured.", trigger))
 	}
@@ -347,7 +347,7 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
 	var (
-		config TriggerWithParameters
+		config triggerWithParameters
 		ok     bool
 	)
 	if config, ok = sm.triggerConfig[trigger]; ok {

@@ -1315,3 +1315,19 @@ func TestStateMachine_String(t *testing.T) {
 		})
 	}
 }
+
+func TestStateMachine_Firing(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(ctx context.Context, i ...interface{}) error {
+			assert.True(t, sm.Firing())
+			return nil
+		})
+
+	assert.NoError(t, sm.Fire(triggerX))
+	assert.False(t, sm.Firing())
+}

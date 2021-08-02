@@ -262,6 +262,14 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 	return &StateConfiguration{sm: sm, sr: sm.stateRepresentation(state), lookup: sm.stateRepresentation}
 }
 
+//Firing indicate StateMachine is firing.
+//Worked only when with FiringQueued.
+func (sm *StateMachine) Firing() bool {
+	sm.firingMutex.Lock()
+	defer sm.firingMutex.Unlock()
+	return sm.firing
+}
+
 // String returns a human-readable representation of the state machine.
 // It is not guaranteed that the order of the PermittedTriggers is the same in consecutive executions.
 func (sm *StateMachine) String() string {

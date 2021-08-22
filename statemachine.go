@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+	"sync/atomic"
 )
 
 // State is used to to represent the possible machine states.
@@ -66,7 +67,7 @@ type StateMachine struct {
 	onTransitionedEvents   onTransitionEvents
 	eventQueue             *list.List
 	firingMode             FiringMode
-	firing                 bool
+	ops                    uint64
 	firingMutex            sync.Mutex
 }
 
@@ -262,12 +263,9 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 	return &StateConfiguration{sm: sm, sr: sm.stateRepresentation(state), lookup: sm.stateRepresentation}
 }
 
-//Firing indicate StateMachine is firing.
-//Worked only when with FiringQueued.
+// Firing returns true when the state machine is processing a trigger.
 func (sm *StateMachine) Firing() bool {
-	sm.firingMutex.Lock()
-	defer sm.firingMutex.Unlock()
-	return sm.firing
+	return atomic.LoadUint64(&sm.ops) != 0
 }
 
 // String returns a human-readable representation of the state machine.
@@ -316,23 +314,16 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 	}
 }
 
-func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
-	sm.firingMutex.Lock()
-	if sm.firing {
+func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) error {
+	if sm.Firing() {
+		sm.firingMutex.Lock()
 		sm.eventQueue.PushBack(queuedTrigger{Trigger: trigger, Args: args})
 		sm.firingMutex.Unlock()
 		return nil
 	}
-	sm.firing = true
-	sm.firingMutex.Unlock()
-	defer func() {
-		sm.firingMutex.Lock()
-		sm.firing = false
-		sm.firingMutex.Unlock()
-	}()
-	err = sm.internalFireOne(ctx, trigger, args...)
-	if err != nil {
-		return
+
+	if err := sm.internalFireOne(ctx, trigger, args...); err != nil {
+		return err
 	}
 
 	sm.firingMutex.Lock()
@@ -341,19 +332,20 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 
 	for e != nil {
 		et := e.Value.(queuedTrigger)
-		err = sm.internalFireOne(ctx, et.Trigger, et.Args...)
-		if err != nil {
-			break
+		if err := sm.internalFireOne(ctx, et.Trigger, et.Args...); err != nil {
+			return err
 		}
 		sm.firingMutex.Lock()
 		sm.eventQueue.Remove(e)
 		e = sm.eventQueue.Front()
 		sm.firingMutex.Unlock()
 	}
-	return
+	return nil
 }
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
+	atomic.AddUint64(&sm.ops, 1)
+	defer atomic.AddUint64(&sm.ops, ^uint64(0))
 	var (
 		config triggerWithParameters
 		ok     bool

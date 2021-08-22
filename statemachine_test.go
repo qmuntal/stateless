@@ -1316,7 +1316,7 @@ func TestStateMachine_String(t *testing.T) {
 	}
 }
 
-func TestStateMachine_Firing(t *testing.T) {
+func TestStateMachine_Firing_Queued(t *testing.T) {
 	sm := NewStateMachine(stateA)
 
 	sm.Configure(stateA).
@@ -1329,5 +1329,43 @@ func TestStateMachine_Firing(t *testing.T) {
 		})
 
 	assert.NoError(t, sm.Fire(triggerX))
+	assert.False(t, sm.Firing())
+}
+
+func TestStateMachine_Firing_Immediate(t *testing.T) {
+	sm := NewStateMachineWithMode(stateA, FiringImmediate)
+
+	sm.Configure(stateA).
+		Permit(triggerX, stateB)
+
+	sm.Configure(stateB).
+		OnEntry(func(ctx context.Context, i ...interface{}) error {
+			assert.True(t, sm.Firing())
+			return nil
+		})
+
+	assert.NoError(t, sm.Fire(triggerX))
+	assert.False(t, sm.Firing())
+}
+
+func TestStateMachine_Firing_Concurrent(t *testing.T) {
+	sm := NewStateMachine(stateA)
+
+	sm.Configure(stateA).
+		PermitReentry(triggerX).
+		OnEntry(func(ctx context.Context, i ...interface{}) error {
+			assert.True(t, sm.Firing())
+			return nil
+		})
+
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	for i := 0; i < 1000; i++ {
+		go func() {
+			assert.NoError(t, sm.Fire(triggerX))
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 	assert.False(t, sm.Firing())
 }

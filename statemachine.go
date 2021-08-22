@@ -317,7 +317,7 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	if sm.Firing() {
 		sm.firingMutex.Lock()
-		sm.eventQueue.PushBack(queuedTrigger{Trigger: trigger, Args: args})
+		sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
 		sm.firingMutex.Unlock()
 		return nil
 	}
@@ -332,7 +332,7 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 
 	for e != nil {
 		et := e.Value.(queuedTrigger)
-		if err := sm.internalFireOne(ctx, et.Trigger, et.Args...); err != nil {
+		if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
 			return err
 		}
 		sm.firingMutex.Lock()

@@ -163,7 +163,6 @@ func (e onTransitionEvents) Invoke(ctx context.Context, transition Transition) {
 }
 
 type queuedTrigger struct {
-	Context context.Context
 	Trigger Trigger
 	Args    []interface{}
 }

@@ -68,6 +68,7 @@ type StateMachine struct {
 	eventQueue             *list.List
 	firingMode             FiringMode
 	ops                    uint64
+	queue                  chan queuedTrigger
 	firingMutex            sync.Mutex
 }
 
@@ -315,30 +316,25 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 }
 
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) error {
+	sm.firingMutex.Lock()
+	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
+	sm.firingMutex.Unlock()
 	if sm.Firing() {
-		sm.firingMutex.Lock()
-		sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
-		sm.firingMutex.Unlock()
 		return nil
 	}
 
-	if err := sm.internalFireOne(ctx, trigger, args...); err != nil {
-		return err
-	}
-
-	sm.firingMutex.Lock()
-	e := sm.eventQueue.Front()
-	sm.firingMutex.Unlock()
-
-	for e != nil {
-		et := e.Value.(queuedTrigger)
+	for {
+		sm.firingMutex.Lock()
+		e := sm.eventQueue.Front()
+		if e == nil {
+			sm.firingMutex.Unlock()
+			break
+		}
+		et := sm.eventQueue.Remove(e).(queuedTrigger)
+		sm.firingMutex.Unlock()
 		if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
 			return err
 		}
-		sm.firingMutex.Lock()
-		sm.eventQueue.Remove(e)
-		e = sm.eventQueue.Front()
-		sm.firingMutex.Unlock()
 	}
 	return nil
 }

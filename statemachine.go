@@ -51,7 +51,7 @@ func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigg
 	if len(unmetGuards) != 0 {
 		return fmt.Errorf("stateless: Trigger '%s' is valid for transition from state '%s' but a guard conditions are not met. Guard descriptions: '%v", trigger, state, unmetGuards)
 	}
-	return fmt.Errorf("stateless: No valid leaving transitions are permitted from state '%s' for trigger '%s'. Consider ignoring the trigger.", state, trigger)
+	return fmt.Errorf("stateless: No valid leaving transitions are permitted from state '%s' for trigger '%s', consider ignoring the trigger", state, trigger)
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
@@ -68,7 +68,6 @@ type StateMachine struct {
 	eventQueue             *list.List
 	firingMode             FiringMode
 	ops                    uint64
-	queue                  chan queuedTrigger
 	firingMutex            sync.Mutex
 }
 

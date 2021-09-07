@@ -8,10 +8,10 @@ import (
 	"unicode"
 )
 
-type graph struct {
+type graph[S State, T Trigger] struct {
 }
 
-func (g *graph) FormatStateMachine(sm *StateMachine) string {
+func (g *graph[S, T]) FormatStateMachine(sm *StateMachine[S, T]) string {
 	var sb strings.Builder
 	sb.WriteString("digraph {\n\tcompound=true;\n\tnode [shape=Mrecord];\n\trankdir=\"LR\";\n\n")
 
@@ -42,7 +42,7 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	return sb.String()
 }
 
-func (g *graph) formatActions(sr *stateRepresentation) string {
+func (g *graph[S, T]) formatActions(sr *stateRepresentation[S, T]) string {
 	es := make([]string, 0, len(sr.EntryActions)+len(sr.ExitActions)+len(sr.ActivateActions)+len(sr.DeactivateActions))
 	for _, act := range sr.ActivateActions {
 		es = append(es, fmt.Sprintf("activated / %s", esc(act.Description.String())))
@@ -61,7 +61,7 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 	return strings.Join(es, `\n`)
 }
 
-func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
+func (g *graph[S, T]) formatOneState(sr *stateRepresentation[S, T], level int) string {
 	var indent string
 	for i := 0; i < level; i++ {
 		indent += "\t"
@@ -96,7 +96,7 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 	return sb.String()
 }
 
-func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
+func (g *graph[S, T]) getEntryActions(ab []actionBehaviour[S, T], t T) []string {
 	var actions []string
 	for _, ea := range ab {
 		if ea.Trigger == nil || *ea.Trigger == t {
@@ -106,7 +106,7 @@ func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	return actions
 }
 
-func getLeafState(sm *StateMachine, sr *stateRepresentation) *stateRepresentation {
+func getLeafState[S State, T Trigger](sm *StateMachine[S, T], sr *stateRepresentation[S, T]) *stateRepresentation[S, T] {
 	if sr.HasInitialState {
 		s, ok := sm.stateConfig[sr.InitialTransitionTarget]
 		if !ok {
@@ -125,27 +125,27 @@ func getLeafState(sm *StateMachine, sr *stateRepresentation) *stateRepresentatio
 	return sr
 }
 
-func (g *graph) resolveTransition(sm *StateMachine, sr *stateRepresentation) (*stateRepresentation, string) {
+func (g *graph[S, T]) resolveTransition(sm *StateMachine[S, T], sr *stateRepresentation[S, T]) (*stateRepresentation[S, T], string) {
 	if anyLeaf := getLeafState(sm, sr); anyLeaf != nil && sr != anyLeaf {
 		return anyLeaf, fmt.Sprintf("cluster_%s", str(sr.State))
 	}
 	return sr, ""
 }
 
-func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentation) string {
+func (g *graph[S, T]) formatAllStateTransitions(sm *StateMachine[S, T], sr *stateRepresentation[S, T]) string {
 	var sb strings.Builder
 	for _, triggers := range sr.TriggerBehaviours {
 		for _, trigger := range triggers {
 			switch t := trigger.(type) {
-			case *ignoredTriggerBehaviour:
+			case *ignoredTriggerBehaviour[T]:
 				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", nil, t.Guard))
-			case *reentryTriggerBehaviour:
+			case *reentryTriggerBehaviour[S, T]:
 				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 				sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, "", "", actions, t.Guard))
-			case *internalTriggerBehaviour:
+			case *internalTriggerBehaviour[S, T]:
 				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", actions, t.Guard))
-			case *transitioningTriggerBehaviour:
+			case *transitioningTriggerBehaviour[S, T]:
 				src := sm.stateConfig[sr.State]
 				if src == nil {
 					return ""
@@ -158,14 +158,14 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 					dest, lhead = g.resolveTransition(sm, dest)
 					actions = g.getEntryActions(dest.EntryActions, t.Trigger)
 				}
-				var destState State
+				var destState S
 				if dest == nil {
 					destState = t.Destination
 				} else {
 					destState = dest.State
 				}
 				sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, ltail, lhead, actions, t.Guard))
-			case *dynamicTriggerBehaviour:
+			case *dynamicTriggerBehaviour[S, T]:
 				// TODO: not supported yet
 			}
 		}
@@ -173,7 +173,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 	return sb.String()
 }
 
-func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, ltail, lhead string, actions []string, guards transitionGuard) string {
+func (g *graph[S, T]) formatOneTransition(sm *StateMachine[S, T], source, destination S, trigger T, ltail, lhead string, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
 	sb.WriteString(str(trigger))
 	if len(actions) > 0 {
@@ -189,7 +189,7 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 	return g.formatOneLine(str(source), str(destination), sb.String(), lhead, ltail)
 }
 
-func (g *graph) formatOneLine(fromNodeName, toNodeName, label, lhead, ltail string) string {
+func (g *graph[S, T]) formatOneLine(fromNodeName, toNodeName, label, lhead, ltail string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
 	if lhead != "" {

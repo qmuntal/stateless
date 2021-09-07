@@ -71,49 +71,49 @@ func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...inter
 	return unmet
 }
 
-type triggerBehaviour interface {
+type triggerBehaviour[T Trigger] interface {
 	GuardConditionMet(context.Context, ...interface{}) bool
 	UnmetGuardConditions(context.Context, ...interface{}) []string
-	GetTrigger() Trigger
+	GetTrigger() T
 }
 
-type baseTriggerBehaviour struct {
+type baseTriggerBehaviour[T Trigger] struct {
 	Guard   transitionGuard
-	Trigger Trigger
+	Trigger T
 }
 
-func (t *baseTriggerBehaviour) GetTrigger() Trigger {
+func (t *baseTriggerBehaviour[T]) GetTrigger() T {
 	return t.Trigger
 }
 
-func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
+func (t *baseTriggerBehaviour[T]) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
 	return t.Guard.GuardConditionMet(ctx, args...)
 }
 
-func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
+func (t *baseTriggerBehaviour[T]) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
 	return t.Guard.UnmetGuardConditions(ctx, args...)
 }
 
-type ignoredTriggerBehaviour struct {
-	baseTriggerBehaviour
+type ignoredTriggerBehaviour[T Trigger] struct {
+	baseTriggerBehaviour[T]
 }
 
-type reentryTriggerBehaviour struct {
-	baseTriggerBehaviour
-	Destination State
+type reentryTriggerBehaviour[S State, T Trigger] struct {
+	baseTriggerBehaviour[T]
+	Destination S
 }
 
-type transitioningTriggerBehaviour struct {
-	baseTriggerBehaviour
-	Destination State
+type transitioningTriggerBehaviour[S State, T Trigger] struct {
+	baseTriggerBehaviour[T]
+	Destination S
 }
 
-type dynamicTriggerBehaviour struct {
-	baseTriggerBehaviour
-	Destination func(context.Context, ...interface{}) (State, error)
+type dynamicTriggerBehaviour[S State, T Trigger] struct {
+	baseTriggerBehaviour[T]
+	Destination func(context.Context, ...interface{}) (S, error)
 }
 
-func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _ State, args ...interface{}) (st State, ok bool) {
+func (t *dynamicTriggerBehaviour[S, T]) ResultsInTransitionFrom(ctx context.Context, _ S, args ...interface{}) (st S, ok bool) {
 	var err error
 	st, err = t.Destination(ctx, args...)
 	if err == nil {
@@ -122,28 +122,28 @@ func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _
 	return
 }
 
-type internalTriggerBehaviour struct {
-	baseTriggerBehaviour
+type internalTriggerBehaviour[S State, T Trigger] struct {
+	baseTriggerBehaviour[T]
 	Action ActionFunc
 }
 
-func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
+func (t *internalTriggerBehaviour[S, T]) Execute(ctx context.Context, transition Transition[S, T], args ...interface{}) error {
 	ctx = withTransition(ctx, transition)
 	return t.Action(ctx, args...)
 }
 
-type triggerBehaviourResult struct {
-	Handler              triggerBehaviour
+type triggerBehaviourResult[T Trigger] struct {
+	Handler              triggerBehaviour[T]
 	UnmetGuardConditions []string
 }
 
 // triggerWithParameters associates configured parameters with an underlying trigger value.
-type triggerWithParameters struct {
-	Trigger       Trigger
+type triggerWithParameters[T Trigger] struct {
+	Trigger       T
 	ArgumentTypes []reflect.Type
 }
 
-func (t triggerWithParameters) validateParameters(args ...interface{}) {
+func (t triggerWithParameters[T]) validateParameters(args ...interface{}) {
 	if len(args) != len(t.ArgumentTypes) {
 		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}

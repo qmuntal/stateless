@@ -29,7 +29,7 @@ const (
 )
 
 func Example() {
-	phoneCall := stateless.NewStateMachine(stateOffHook)
+	phoneCall := stateless.NewStateMachine[string, string](stateOffHook)
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 

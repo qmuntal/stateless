@@ -1222,10 +1222,10 @@ func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
 		})
 
 	sm.OnTransitioning(func(_ context.Context, tr Transition) {
-		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioning%s%s", tr.Source, tr.Destination))
+		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioning%v%v", tr.Source, tr.Destination))
 	})
 	sm.OnTransitioned(func(_ context.Context, tr Transition) {
-		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioned%s%s", tr.Source, tr.Destination))
+		actualOrdering = append(actualOrdering, fmt.Sprintf("OnTransitioned%v%v", tr.Source, tr.Destination))
 	})
 
 	sm.Fire(triggerX)

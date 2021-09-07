@@ -49,7 +49,7 @@ func (sc *StateConfiguration) Machine() *StateMachine {
 // and enter the target state.
 func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfiguration {
 	if sc.sr.HasInitialState {
-		panic(fmt.Sprintf("stateless: This state has already been configured with an initial transition (%s).", sc.sr.InitialTransitionTarget))
+		panic(fmt.Sprintf("stateless: This state has already been configured with an initial transition (%v).", sc.sr.InitialTransitionTarget))
 	}
 	if targetState == sc.State() {
 		panic("stateless: Setting the current state as the target destination state is not allowed.")
@@ -169,7 +169,7 @@ func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	state := sc.sr.State
 	// Check for accidental identical cyclic configuration
 	if state == superstate {
-		panic(fmt.Sprintf("stateless: Configuring %s as a substate of %s creates an illegal cyclic configuration.", state, superstate))
+		panic(fmt.Sprintf("stateless: Configuring %v as a substate of %v creates an illegal cyclic configuration.", state, superstate))
 	}
 
 	// Check for accidental identical nested cyclic configuration
@@ -181,7 +181,7 @@ func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	for activeSc.Superstate != nil {
 		// Check if superstate is already added to hashset
 		if _, ok := supersets[activeSc.Superstate.state()]; ok {
-			panic(fmt.Sprintf("stateless: Configuring %s as a substate of %s creates an illegal nested cyclic configuration.", state, supersets))
+			panic(fmt.Sprintf("stateless: Configuring %v as a substate of %v creates an illegal nested cyclic configuration.", state, supersets))
 		}
 		supersets[activeSc.Superstate.state()] = empty
 		activeSc = sc.lookup(activeSc.Superstate.state())

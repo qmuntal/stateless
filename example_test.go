@@ -81,7 +81,7 @@ func Example() {
 	phoneCall.Fire(triggerSetVolume, 11)
 	phoneCall.Fire(triggerPlacedOnHold)
 	phoneCall.Fire(triggerPhoneHurledAgainstWall)
-	fmt.Printf("State is %s\n", phoneCall.MustState())
+	fmt.Printf("State is %v\n", phoneCall.MustState())
 
 	// Output:
 	// [Phone Call] placed for : [qmuntal]

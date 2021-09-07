@@ -99,7 +99,7 @@ func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger,
 		}
 	}
 	if len(metResults) > 1 {
-		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%s' for trigger '%s'. Guard clauses must be mutually exclusive.", sr.State, trigger))
+		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%v' for trigger '%v'. Guard clauses must be mutually exclusive.", sr.State, trigger))
 	}
 	if len(metResults) == 1 {
 		result, ok = metResults[0], true

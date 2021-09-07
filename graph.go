@@ -25,7 +25,7 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	initialState, err := sm.State(context.Background())
 	if err == nil {
 		sb.WriteString("\n init [label=\"\", shape=point];")
-		sb.WriteString(fmt.Sprintf("\n init -> {%s}[style = \"solid\"]", initialState))
+		sb.WriteString(fmt.Sprintf("\n init -> {%v}[style = \"solid\"]", initialState))
 	}
 	sb.WriteString("\n}")
 	return sb.String()
@@ -52,7 +52,7 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 
 func (g *graph) formatOneState(sr *stateRepresentation) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\t%s [label=\"%s", sr.State, sr.State))
+	sb.WriteString(fmt.Sprintf("\t%v [label=\"%v", sr.State, sr.State))
 	act := g.formatActions(sr)
 	if act != "" {
 		sb.WriteString("|")
@@ -64,7 +64,7 @@ func (g *graph) formatOneState(sr *stateRepresentation) string {
 
 func (g *graph) formatOneCluster(sr *stateRepresentation) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("\nsubgraph cluster_%s {\n\tlabel=\"%s", sr.State, sr.State))
+	sb.WriteString(fmt.Sprintf("\nsubgraph cluster_%v {\n\tlabel=\"%v", sr.State, sr.State))
 	act := g.formatActions(sr)
 	if act != "" {
 		sb.WriteString("\n----------\n")

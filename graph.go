@@ -82,7 +82,7 @@ func (g *graph) formatOneCluster(sr *stateRepresentation) string {
 func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	var actions []string
 	for _, ea := range ab {
-		if ea.Trigger == t {
+		if ea.Trigger == nil || *ea.Trigger == t {
 			actions = append(actions, ea.Description.String())
 		}
 	}

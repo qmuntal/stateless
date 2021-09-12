@@ -153,17 +153,3 @@ func (t triggerWithParameters) validateParameters(args ...interface{}) {
 		}
 	}
 }
-
-type onTransitionEvents []TransitionFunc
-
-func (e onTransitionEvents) Invoke(ctx context.Context, transition Transition) {
-	for _, event := range e {
-		event(ctx, transition)
-	}
-}
-
-type queuedTrigger struct {
-	Context context.Context
-	Trigger Trigger
-	Args    []interface{}
-}

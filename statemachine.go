@@ -54,6 +54,12 @@ func DefaultUnhandledTriggerAction(_ context.Context, state State, trigger Trigg
 	return fmt.Errorf("stateless: No valid leaving transitions are permitted from state '%v' for trigger '%v', consider ignoring the trigger", state, trigger)
 }
 
+func callEvents(events []TransitionFunc, ctx context.Context, transition Transition) {
+	for _, e := range events {
+		e(ctx, transition)
+	}
+}
+
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
 // It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
 // so it is up to the client to protect them against race conditions.
@@ -63,9 +69,9 @@ type StateMachine struct {
 	stateAccessor          func(context.Context) (State, error)
 	stateMutator           func(context.Context, State) error
 	unhandledTriggerAction UnhandledTriggerActionFunc
-	onTransitioningEvents  onTransitionEvents
-	onTransitionedEvents   onTransitionEvents
-	eventQueue             *list.List
+	onTransitioningEvents  []TransitionFunc
+	onTransitionedEvents   []TransitionFunc
+	eventQueue             list.List
 	firingMode             FiringMode
 	ops                    uint64
 	firingMutex            sync.Mutex
@@ -76,7 +82,6 @@ func newStateMachine() *StateMachine {
 		stateConfig:            make(map[State]*stateRepresentation),
 		triggerConfig:          make(map[Trigger]triggerWithParameters),
 		unhandledTriggerAction: UnhandledTriggerActionFunc(DefaultUnhandledTriggerAction),
-		eventQueue:             list.New(),
 	}
 }
 
@@ -317,6 +322,12 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 	}
 }
 
+type queuedTrigger struct {
+	Context context.Context
+	Trigger Trigger
+	Args    []interface{}
+}
+
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) error {
 	sm.firingMutex.Lock()
 	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
@@ -399,7 +410,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 			return err
 		}
 	}
-	sm.onTransitioningEvents.Invoke(ctx, transition)
+	callEvents(sm.onTransitioningEvents, ctx, transition)
 	rep, err := sm.enterState(ctx, newSr, transition, args...)
 	if err != nil {
 		return err
@@ -407,7 +418,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 	if err := sm.setState(ctx, rep.State); err != nil {
 		return err
 	}
-	sm.onTransitionedEvents.Invoke(ctx, transition)
+	callEvents(sm.onTransitionedEvents, ctx, transition)
 	return nil
 }
 
@@ -415,7 +426,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 	if err := sr.Exit(ctx, transition, args...); err != nil {
 		return err
 	}
-	sm.onTransitioningEvents.Invoke(ctx, transition)
+	callEvents(sm.onTransitioningEvents, ctx, transition)
 	if err := sm.setState(ctx, transition.Destination); err != nil {
 		return err
 	}
@@ -430,7 +441,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 			return err
 		}
 	}
-	sm.onTransitionedEvents.Invoke(ctx, Transition{transition.Source, rep.State, transition.Trigger, false})
+	callEvents(sm.onTransitionedEvents, ctx, Transition{transition.Source, rep.State, transition.Trigger, false})
 	return nil
 }
 
@@ -456,7 +467,7 @@ func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation,
 		}
 		initialTranslation := Transition{Source: transition.Source, Destination: sr.InitialTransitionTarget, Trigger: transition.Trigger, isInitial: true}
 		sr = sm.stateRepresentation(sr.InitialTransitionTarget)
-		sm.onTransitioningEvents.Invoke(ctx, Transition{transition.Destination, initialTranslation.Destination, transition.Trigger, false})
+		callEvents(sm.onTransitioningEvents, ctx, Transition{transition.Destination, initialTranslation.Destination, transition.Trigger, false})
 		sr, err = sm.enterState(ctx, sr, initialTranslation, args...)
 	}
 	return sr, err

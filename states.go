@@ -5,10 +5,6 @@ import (
 	"fmt"
 )
 
-type stateReference struct {
-	State State
-}
-
 type actionBehaviour struct {
 	Action      ActionFunc
 	Description invocationInfo

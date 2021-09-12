@@ -94,7 +94,9 @@ func NewStateMachine(initialState State) *StateMachine {
 func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMachine {
 	var stateMutex sync.Mutex
 	sm := newStateMachine()
-	reference := &stateReference{State: initialState}
+	reference := &struct {
+		State State
+	}{State: initialState}
 	sm.stateAccessor = func(_ context.Context) (State, error) {
 		stateMutex.Lock()
 		defer stateMutex.Unlock()

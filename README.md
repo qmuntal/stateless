@@ -11,10 +11,10 @@
 
 # Stateless
 
-**Create *state machines* and lightweight *state machine-based workflows* directly in Go code:**
+**Create _state machines_ and lightweight _state machine-based workflows_ directly in Go code:**
 
 ```go
-phoneCall := stateless.NewStateMachine(stateOffHook)
+phoneCall := stateless.NewStateMachine[string, string](stateOffHook)
 
 phoneCall.Configure(stateOffHook).Permit(triggerCallDialed, stateRinging)
 
@@ -50,19 +50,19 @@ The state machine implemented in this library is based on the theory of [UML sta
 
 Most standard state machine constructs are supported:
 
-* Support for states and triggers of any comparable type (int, strings, boolean, structs, etc.)
-* Hierarchical states
-* Entry/exit events for states
-* Guard clauses to support conditional transitions
-* Introspection
+- Support for states and triggers of any comparable type (int, strings, boolean, structs, etc.)
+- Hierarchical states
+- Entry/exit events for states
+- Guard clauses to support conditional transitions
+- Introspection
 
 Some useful extensions are also provided:
 
-* Ability to store state externally (for example, in a property tracked by an ORM)
-* Parameterised triggers
-* Reentrant states
-* Thread-safe
-* Export to DOT graph
+- Ability to store state externally (for example, in a property tracked by an ORM)
+- Parameterised triggers
+- Reentrant states
+- Thread-safe
+- Export to DOT graph
 
 ### Hierarchical States
 
@@ -102,9 +102,9 @@ sm.Configure(State.C)
 Stateless is designed to be embedded in various application models. For example, some ORMs place requirements upon where mapped data may be stored, and UI frameworks often require state to be stored in special "bindable" properties. To this end, the `StateMachine` constructor can accept function arguments that will be used to read and write the state values:
 
 ```go
-machine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) (stateless.State, error) {
+machine := stateless.NewStateMachineWithExternalStorage[string, string](func(_ context.Context) (string, error) {
   return myState.Value, nil
-}, func(_ context.Context, state stateless.State) error {
+}, func(_ context.Context, state string) error {
   myState.Value  = state
   return nil
 }, stateless.FiringQueued)
@@ -208,7 +208,7 @@ This can then be rendered by tools that support the DOT graph language, such as 
 
 This is the complete Phone Call graph as builded in `example_test.go`.
 
-![Phone Call graph](assets/phone-graph.png?raw=true "Phone Call complete DOT")
+![Phone Call graph](assets/phone-graph.png?raw=true 'Phone Call complete DOT')
 
 ## Project Goals
 

@@ -206,7 +206,6 @@ func (sr *stateRepresentation[S, T]) IsIncludedInState(state S) bool {
 func (sr *stateRepresentation[S, T]) AddTriggerBehaviour(tb triggerBehaviour[T]) {
 	trigger := tb.GetTrigger()
 	sr.TriggerBehaviours[trigger] = append(sr.TriggerBehaviours[trigger], tb)
-
 }
 
 func (sr *stateRepresentation[S, T]) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []T) {

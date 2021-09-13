@@ -66,19 +66,19 @@ func Test_stateRepresentation_CanHandle_TransitionExists_TriggerCannotBeFired(t 
 
 func Test_stateRepresentation_CanHandle_TransitionDoesNotExist_TriggerCanBeFired(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	sr.AddTriggerBehaviour(&ignoredTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{Trigger: triggerX}})
+	sr.AddTriggerBehaviour(&ignoredTriggerBehaviour[string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{Trigger: triggerX}})
 	assert.True(t, sr.CanHandle(context.Background(), triggerX))
 }
 
 func Test_stateRepresentation_CanHandle_TransitionExistsInSupersate_TriggerCanBeFired(t *testing.T) {
 	super, sub := createSuperSubstatePair()
-	super.AddTriggerBehaviour(&ignoredTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{Trigger: triggerX}})
+	super.AddTriggerBehaviour(&ignoredTriggerBehaviour[string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{Trigger: triggerX}})
 	assert.True(t, sub.CanHandle(context.Background(), triggerX))
 }
 
 func Test_stateRepresentation_CanHandle_TransitionUnmetGuardConditions_TriggerCannotBeFired(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
+	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour[string, string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{
 		Trigger: triggerX,
 		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
@@ -91,7 +91,7 @@ func Test_stateRepresentation_CanHandle_TransitionUnmetGuardConditions_TriggerCa
 
 func Test_stateRepresentation_CanHandle_TransitionGuardConditionsMet_TriggerCanBeFired(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
+	sr.AddTriggerBehaviour(&transitioningTriggerBehaviour[string, string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{
 		Trigger: triggerX,
 		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
@@ -104,7 +104,7 @@ func Test_stateRepresentation_CanHandle_TransitionGuardConditionsMet_TriggerCanB
 
 func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuardConditions_FireNotPossible(t *testing.T) {
 	super, sub := createSuperSubstatePair()
-	super.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
+	super.AddTriggerBehaviour(&transitioningTriggerBehaviour[string, string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{
 		Trigger: triggerX,
 		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
@@ -122,7 +122,7 @@ func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuard
 
 func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardConditions_CanBeFired(t *testing.T) {
 	super, sub := createSuperSubstatePair()
-	super.AddTriggerBehaviour(&transitioningTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{
+	super.AddTriggerBehaviour(&transitioningTriggerBehaviour[string, string]{baseTriggerBehaviour: baseTriggerBehaviour[string]{
 		Trigger: triggerX,
 		Guard: newtransitionGuard(func(_ context.Context, _ ...interface{}) bool {
 			return true
@@ -141,9 +141,9 @@ func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardCondi
 
 func Test_stateRepresentation_Enter_EnteringActionsExecuted(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actualTransition = transition
 			return nil
@@ -156,9 +156,9 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted(t *testing.T) {
 
 func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			return errors.New("")
 		},
@@ -170,9 +170,9 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) 
 
 func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateA)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actualTransition = transition
 			return nil
@@ -185,13 +185,13 @@ func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
 func Test_stateRepresentation_Enter_FromSubToSuperstate_SubstateEntryActionsExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	sub.EntryActions = append(sub.EntryActions, actionBehaviour{
+	sub.EntryActions = append(sub.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
 	assert.True(t, executed)
 }
@@ -199,13 +199,13 @@ func Test_stateRepresentation_Enter_FromSubToSuperstate_SubstateEntryActionsExec
 func Test_stateRepresentation_Enter_SuperFromSubstate_SuperEntryActionsNotExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	super.EntryActions = append(super.EntryActions, actionBehaviour{
+	super.EntryActions = append(super.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
 	assert.False(t, executed)
 }
@@ -213,13 +213,13 @@ func Test_stateRepresentation_Enter_SuperFromSubstate_SuperEntryActionsNotExecut
 func Test_stateRepresentation_Enter_Substate_SuperEntryActionsExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	super.EntryActions = append(super.EntryActions, actionBehaviour{
+	super.EntryActions = append(super.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: stateC, Destination: sub.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: stateC, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
 	assert.True(t, executed)
 }
@@ -227,19 +227,19 @@ func Test_stateRepresentation_Enter_Substate_SuperEntryActionsExecuted(t *testin
 func Test_stateRepresentation_Enter_ActionsExecuteInOrder(t *testing.T) {
 	var actual []int
 	sr := newstateRepresentation[string, string](stateB)
-	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actual = append(actual, 0)
 			return nil
 		},
 	})
-	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actual = append(actual, 1)
 			return nil
 		},
 	})
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
 	sr.Enter(context.Background(), transition)
 	assert.Equal(t, 2, len(actual))
 	assert.Equal(t, 0, actual[0])
@@ -249,30 +249,30 @@ func Test_stateRepresentation_Enter_ActionsExecuteInOrder(t *testing.T) {
 func Test_stateRepresentation_Enter_Substate_SuperstateEntryActionsExecuteBeforeSubstate(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	var order, subOrder, superOrder int
-	super.EntryActions = append(super.EntryActions, actionBehaviour{
+	super.EntryActions = append(super.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			order += 1
 			superOrder = order
 			return nil
 		},
 	})
-	sub.EntryActions = append(sub.EntryActions, actionBehaviour{
+	sub.EntryActions = append(sub.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			order += 1
 			subOrder = order
 			return nil
 		},
 	})
-	transition := Transition{Source: stateC, Destination: sub.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: stateC, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
 	assert.True(t, superOrder < subOrder)
 }
 
 func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateB)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.EntryActions = append(sr.EntryActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actualTransition = transition
 			return nil
@@ -284,9 +284,9 @@ func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
 
 func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateA)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actualTransition = transition
 			return nil
@@ -299,9 +299,9 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 
 func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
 	sr := newstateRepresentation[string, string](stateA)
-	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
-	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+	transition := Transition[string, string]{Source: stateA, Destination: stateB, Trigger: triggerX}
+	var actualTransition Transition[string, string]
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			return errors.New("")
 		},
@@ -314,13 +314,13 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
 func Test_stateRepresentation_Exit_FromSubToSuperstate_SubstateExitActionsExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	sub.ExitActions = append(sub.ExitActions, actionBehaviour{
+	sub.ExitActions = append(sub.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: sub.State, Destination: super.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: sub.State, Destination: super.State, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.True(t, executed)
 }
@@ -331,13 +331,13 @@ func Test_stateRepresentation_Exit_FromSubToOther_SuperstateExitActionsExecuted(
 	super.Superstate = supersuper
 	supersuper.Superstate = newstateRepresentation[string, string](stateD)
 	executed := false
-	super.ExitActions = append(super.ExitActions, actionBehaviour{
+	super.ExitActions = append(super.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: sub.State, Destination: stateD, Trigger: triggerX}
+	transition := Transition[string, string]{Source: sub.State, Destination: stateD, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.True(t, executed)
 }
@@ -345,13 +345,13 @@ func Test_stateRepresentation_Exit_FromSubToOther_SuperstateExitActionsExecuted(
 func Test_stateRepresentation_Exit_FromSuperToSubstate_SuperExitActionsNotExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	super.ExitActions = append(super.ExitActions, actionBehaviour{
+	super.ExitActions = append(super.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
+	transition := Transition[string, string]{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.False(t, executed)
 }
@@ -359,13 +359,13 @@ func Test_stateRepresentation_Exit_FromSuperToSubstate_SuperExitActionsNotExecut
 func Test_stateRepresentation_Exit_Substate_SuperExitActionsExecuted(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	executed := false
-	super.ExitActions = append(super.ExitActions, actionBehaviour{
+	super.ExitActions = append(super.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			executed = true
 			return nil
 		},
 	})
-	transition := Transition{Source: sub.State, Destination: stateC, Trigger: triggerX}
+	transition := Transition[string, string]{Source: sub.State, Destination: stateC, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.True(t, executed)
 }
@@ -373,19 +373,19 @@ func Test_stateRepresentation_Exit_Substate_SuperExitActionsExecuted(t *testing.
 func Test_stateRepresentation_Exit_ActionsExecuteInOrder(t *testing.T) {
 	var actual []int
 	sr := newstateRepresentation[string, string](stateB)
-	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actual = append(actual, 0)
 			return nil
 		},
 	})
-	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
+	sr.ExitActions = append(sr.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			actual = append(actual, 1)
 			return nil
 		},
 	})
-	transition := Transition{Source: stateB, Destination: stateC, Trigger: triggerX}
+	transition := Transition[string, string]{Source: stateB, Destination: stateC, Trigger: triggerX}
 	sr.Exit(context.Background(), transition)
 	assert.Equal(t, 2, len(actual))
 	assert.Equal(t, 0, actual[0])
@@ -395,21 +395,21 @@ func Test_stateRepresentation_Exit_ActionsExecuteInOrder(t *testing.T) {
 func Test_stateRepresentation_Exit_Substate_SubstateEntryActionsExecuteBeforeSuperstate(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	var order, subOrder, superOrder int
-	super.ExitActions = append(super.ExitActions, actionBehaviour{
+	super.ExitActions = append(super.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			order += 1
 			superOrder = order
 			return nil
 		},
 	})
-	sub.ExitActions = append(sub.ExitActions, actionBehaviour{
+	sub.ExitActions = append(sub.ExitActions, actionBehaviour[string, string]{
 		Action: func(_ context.Context, _ ...interface{}) error {
 			order += 1
 			subOrder = order
 			return nil
 		},
 	})
-	transition := Transition{Source: sub.State, Destination: stateC, Trigger: triggerX}
+	transition := Transition[string, string]{Source: sub.State, Destination: stateC, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
 	assert.True(t, subOrder < superOrder)
 }

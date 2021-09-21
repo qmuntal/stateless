@@ -64,6 +64,8 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 // It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
 // so it is up to the client to protect them against race conditions.
 type StateMachine struct {
+	// ops is accessed atomically so we put it at the beginning of the struct to achieve 64 bit alignment
+	ops                    uint64
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]triggerWithParameters
 	stateAccessor          func(context.Context) (State, error)
@@ -73,7 +75,6 @@ type StateMachine struct {
 	onTransitionedEvents   []TransitionFunc
 	eventQueue             list.List
 	firingMode             FiringMode
-	ops                    uint64
 	firingMutex            sync.Mutex
 }
 

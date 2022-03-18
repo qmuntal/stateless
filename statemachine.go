@@ -41,7 +41,7 @@ type Transition[S State, T Trigger] struct {
 
 // IsReentry returns true if the transition is a re-entry,
 // i.e. the identity transition.
-func (t *Transition[S, T]) IsReentry() bool {
+func (t *Transition[_, _]) IsReentry() bool {
 	return t.Source == t.Destination
 }
 
@@ -135,7 +135,7 @@ func (sm *StateMachine[S, T]) ToGraph() string {
 }
 
 // State returns the current state.
-func (sm *StateMachine[S, T]) State(ctx context.Context) (S, error) {
+func (sm *StateMachine[S, _]) State(ctx context.Context) (S, error) {
 	return sm.stateAccessor(ctx)
 }
 
@@ -143,7 +143,7 @@ func (sm *StateMachine[S, T]) State(ctx context.Context) (S, error) {
 // It is safe to use this method when used together with NewStateMachine
 // or when using NewStateMachineWithExternalStorage with an state accessor that
 // does not return an error.
-func (sm *StateMachine[S, T]) MustState() S {
+func (sm *StateMachine[S, _]) MustState() S {
 	st, err := sm.State(context.Background())
 	if err != nil {
 		panic(err)
@@ -152,12 +152,12 @@ func (sm *StateMachine[S, T]) MustState() S {
 }
 
 // PermittedTriggers see PermittedTriggersCtx.
-func (sm *StateMachine[S, T]) PermittedTriggers(args ...interface{}) ([]T, error) {
+func (sm *StateMachine[_, T]) PermittedTriggers(args ...interface{}) ([]T, error) {
 	return sm.PermittedTriggersCtx(context.Background(), args...)
 }
 
 // PermittedTriggersCtx returns the currently-permissible trigger values.
-func (sm *StateMachine[S, T]) PermittedTriggersCtx(ctx context.Context, args ...interface{}) ([]T, error) {
+func (sm *StateMachine[_, T]) PermittedTriggersCtx(ctx context.Context, args ...interface{}) ([]T, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return nil, err
@@ -166,14 +166,14 @@ func (sm *StateMachine[S, T]) PermittedTriggersCtx(ctx context.Context, args ...
 }
 
 // Activate see ActivateCtx.
-func (sm *StateMachine[S, T]) Activate() error {
+func (sm *StateMachine[_, _]) Activate() error {
 	return sm.ActivateCtx(context.Background())
 }
 
 // ActivateCtx activates current state. Actions associated with activating the current state will be invoked.
 // The activation is idempotent and subsequent activation of the same current state
 // will not lead to re-execution of activation callbacks.
-func (sm *StateMachine[S, T]) ActivateCtx(ctx context.Context) error {
+func (sm *StateMachine[_, _]) ActivateCtx(ctx context.Context) error {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return err
@@ -182,14 +182,14 @@ func (sm *StateMachine[S, T]) ActivateCtx(ctx context.Context) error {
 }
 
 // Deactivate see DeactivateCtx.
-func (sm *StateMachine[S, T]) Deactivate() error {
+func (sm *StateMachine[_, _]) Deactivate() error {
 	return sm.DeactivateCtx(context.Background())
 }
 
 // DeactivateCtx deactivates current state. Actions associated with deactivating the current state will be invoked.
 // The deactivation is idempotent and subsequent deactivation of the same current state
 // will not lead to re-execution of deactivation callbacks.
-func (sm *StateMachine[S, T]) DeactivateCtx(ctx context.Context) error {
+func (sm *StateMachine[_, _]) DeactivateCtx(ctx context.Context) error {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return err
@@ -198,13 +198,13 @@ func (sm *StateMachine[S, T]) DeactivateCtx(ctx context.Context) error {
 }
 
 // IsInState see IsInStateCtx.
-func (sm *StateMachine[S, T]) IsInState(state S) (bool, error) {
+func (sm *StateMachine[S, _]) IsInState(state S) (bool, error) {
 	return sm.IsInStateCtx(context.Background(), state)
 }
 
 // IsInStateCtx determine if the state machine is in the supplied state.
 // Returns true if the current state is equal to, or a substate of, the supplied state.
-func (sm *StateMachine[S, T]) IsInStateCtx(ctx context.Context, state S) (bool, error) {
+func (sm *StateMachine[S, _]) IsInStateCtx(ctx context.Context, state S) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
@@ -213,12 +213,12 @@ func (sm *StateMachine[S, T]) IsInStateCtx(ctx context.Context, state S) (bool, 
 }
 
 // CanFire see CanFireCtx.
-func (sm *StateMachine[S, T]) CanFire(trigger T, args ...interface{}) (bool, error) {
+func (sm *StateMachine[_, T]) CanFire(trigger T, args ...interface{}) (bool, error) {
 	return sm.CanFireCtx(context.Background(), trigger, args...)
 }
 
 // CanFireCtx returns true if the trigger can be fired in the current state.
-func (sm *StateMachine[S, T]) CanFireCtx(ctx context.Context, trigger T, args ...interface{}) (bool, error) {
+func (sm *StateMachine[_, T]) CanFireCtx(ctx context.Context, trigger T, args ...interface{}) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
@@ -227,7 +227,7 @@ func (sm *StateMachine[S, T]) CanFireCtx(ctx context.Context, trigger T, args ..
 }
 
 // SetTriggerParameters specify the arguments that must be supplied when a specific trigger is fired.
-func (sm *StateMachine[S, T]) SetTriggerParameters(trigger T, argumentTypes ...reflect.Type) {
+func (sm *StateMachine[_, T]) SetTriggerParameters(trigger T, argumentTypes ...reflect.Type) {
 	config := triggerWithParameters[T]{Trigger: trigger, ArgumentTypes: argumentTypes}
 	if _, ok := sm.triggerConfig[config.Trigger]; ok {
 		panic(fmt.Sprintf("stateless: Parameters for the trigger '%v' have already been configured.", trigger))
@@ -236,7 +236,7 @@ func (sm *StateMachine[S, T]) SetTriggerParameters(trigger T, argumentTypes ...r
 }
 
 // Fire see FireCtx
-func (sm *StateMachine[S, T]) Fire(trigger T, args ...interface{}) error {
+func (sm *StateMachine[_, T]) Fire(trigger T, args ...interface{}) error {
 	return sm.FireCtx(context.Background(), trigger, args...)
 }
 
@@ -253,7 +253,7 @@ func (sm *StateMachine[S, T]) Fire(trigger T, args ...interface{}) error {
 //
 // The context is passed down to all actions and callbacks called within the scope of this method.
 // There is no context error checking, although it may be implemented in future releases.
-func (sm *StateMachine[S, T]) FireCtx(ctx context.Context, trigger T, args ...interface{}) error {
+func (sm *StateMachine[_, T]) FireCtx(ctx context.Context, trigger T, args ...interface{}) error {
 	return sm.internalFire(ctx, trigger, args...)
 }
 
@@ -287,7 +287,7 @@ func (sm *StateMachine[S, T]) Firing() bool {
 
 // String returns a human-readable representation of the state machine.
 // It is not guaranteed that the order of the PermittedTriggers is the same in consecutive executions.
-func (sm *StateMachine[S, T]) String() string {
+func (sm *StateMachine[_, _]) String() string {
 	state, err := sm.State(context.Background())
 	if err != nil {
 		return ""
@@ -298,7 +298,7 @@ func (sm *StateMachine[S, T]) String() string {
 	return fmt.Sprintf("StateMachine {{ State = %v, PermittedTriggers = %v }}", state, triggers)
 }
 
-func (sm *StateMachine[S, T]) setState(ctx context.Context, state S) error {
+func (sm *StateMachine[S, _]) setState(ctx context.Context, state S) error {
 	return sm.stateMutator(ctx, state)
 }
 
@@ -320,7 +320,7 @@ func (sm *StateMachine[S, T]) stateRepresentation(state S) (sr *stateRepresentat
 	return
 }
 
-func (sm *StateMachine[S, T]) internalFire(ctx context.Context, trigger T, args ...interface{}) error {
+func (sm *StateMachine[_, T]) internalFire(ctx context.Context, trigger T, args ...interface{}) error {
 	switch sm.firingMode {
 	case FiringImmediate:
 		return sm.internalFireOne(ctx, trigger, args...)
@@ -337,7 +337,7 @@ type queuedTrigger[T Trigger] struct {
 	Args    []interface{}
 }
 
-func (sm *StateMachine[S, T]) internalFireQueued(ctx context.Context, trigger T, args ...interface{}) error {
+func (sm *StateMachine[_, T]) internalFireQueued(ctx context.Context, trigger T, args ...interface{}) error {
 	sm.firingMutex.Lock()
 	sm.eventQueue.PushBack(queuedTrigger[T]{Context: ctx, Trigger: trigger, Args: args})
 	sm.firingMutex.Unlock()

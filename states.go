@@ -48,21 +48,21 @@ func newstateRepresentation[S State, T Trigger](state S) *stateRepresentation[S,
 	}
 }
 
-func (sr *stateRepresentation[S, T]) SetInitialTransition(state S) {
+func (sr *stateRepresentation[S, _]) SetInitialTransition(state S) {
 	sr.InitialTransitionTarget = state
 	sr.HasInitialState = true
 }
 
-func (sr *stateRepresentation[S, T]) state() S {
+func (sr *stateRepresentation[S, _]) state() S {
 	return sr.State
 }
 
-func (sr *stateRepresentation[S, T]) CanHandle(ctx context.Context, trigger T, args ...interface{}) (ok bool) {
+func (sr *stateRepresentation[_, T]) CanHandle(ctx context.Context, trigger T, args ...interface{}) (ok bool) {
 	_, ok = sr.FindHandler(ctx, trigger, args...)
 	return
 }
 
-func (sr *stateRepresentation[S, T]) FindHandler(ctx context.Context, trigger T, args ...interface{}) (handler triggerBehaviourResult[T], ok bool) {
+func (sr *stateRepresentation[_, T]) FindHandler(ctx context.Context, trigger T, args ...interface{}) (handler triggerBehaviourResult[T], ok bool) {
 	handler, ok = sr.findHandler(ctx, trigger, args...)
 	if ok || sr.Superstate == nil {
 		return
@@ -71,7 +71,7 @@ func (sr *stateRepresentation[S, T]) FindHandler(ctx context.Context, trigger T,
 	return
 }
 
-func (sr *stateRepresentation[S, T]) findHandler(ctx context.Context, trigger T, args ...interface{}) (result triggerBehaviourResult[T], ok bool) {
+func (sr *stateRepresentation[_, T]) findHandler(ctx context.Context, trigger T, args ...interface{}) (result triggerBehaviourResult[T], ok bool) {
 	var (
 		possibleBehaviours []triggerBehaviour[T]
 	)
@@ -105,7 +105,7 @@ func (sr *stateRepresentation[S, T]) findHandler(ctx context.Context, trigger T,
 	return
 }
 
-func (sr *stateRepresentation[S, T]) Activate(ctx context.Context) error {
+func (sr *stateRepresentation[_, _]) Activate(ctx context.Context) error {
 	if sr.Superstate != nil {
 		if err := sr.Superstate.Activate(ctx); err != nil {
 			return err
@@ -114,7 +114,7 @@ func (sr *stateRepresentation[S, T]) Activate(ctx context.Context) error {
 	return sr.executeActivationActions(ctx)
 }
 
-func (sr *stateRepresentation[S, T]) Deactivate(ctx context.Context) error {
+func (sr *stateRepresentation[_, _]) Deactivate(ctx context.Context) error {
 	if err := sr.executeDeactivationActions(ctx); err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (sr *stateRepresentation[S, T]) InternalAction(ctx context.Context, transit
 	return internalTransition.Execute(ctx, transition, args...)
 }
 
-func (sr *stateRepresentation[S, T]) IncludeState(state S) bool {
+func (sr *stateRepresentation[S, _]) IncludeState(state S) bool {
 	if state == sr.State {
 		return true
 	}
@@ -193,7 +193,7 @@ func (sr *stateRepresentation[S, T]) IncludeState(state S) bool {
 	return false
 }
 
-func (sr *stateRepresentation[S, T]) IsIncludedInState(state S) bool {
+func (sr *stateRepresentation[S, _]) IsIncludedInState(state S) bool {
 	if state == sr.State {
 		return true
 	}
@@ -203,12 +203,12 @@ func (sr *stateRepresentation[S, T]) IsIncludedInState(state S) bool {
 	return false
 }
 
-func (sr *stateRepresentation[S, T]) AddTriggerBehaviour(tb triggerBehaviour[T]) {
+func (sr *stateRepresentation[_, T]) AddTriggerBehaviour(tb triggerBehaviour[T]) {
 	trigger := tb.GetTrigger()
 	sr.TriggerBehaviours[trigger] = append(sr.TriggerBehaviours[trigger], tb)
 }
 
-func (sr *stateRepresentation[S, T]) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []T) {
+func (sr *stateRepresentation[_, T]) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []T) {
 	for key, value := range sr.TriggerBehaviours {
 		for _, tb := range value {
 			if len(tb.UnmetGuardConditions(ctx, args...)) == 0 {
@@ -235,7 +235,7 @@ func (sr *stateRepresentation[S, T]) PermittedTriggers(ctx context.Context, args
 	return
 }
 
-func (sr *stateRepresentation[S, T]) executeActivationActions(ctx context.Context) error {
+func (sr *stateRepresentation[_, _]) executeActivationActions(ctx context.Context) error {
 	for _, a := range sr.ActivateActions {
 		if err := a.Execute(ctx); err != nil {
 			return err
@@ -244,7 +244,7 @@ func (sr *stateRepresentation[S, T]) executeActivationActions(ctx context.Contex
 	return nil
 }
 
-func (sr *stateRepresentation[S, T]) executeDeactivationActions(ctx context.Context) error {
+func (sr *stateRepresentation[_, _]) executeDeactivationActions(ctx context.Context) error {
 	for _, a := range sr.DeactivateActions {
 		if err := a.Execute(ctx); err != nil {
 			return err

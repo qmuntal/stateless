@@ -35,7 +35,7 @@ type StateConfiguration[S State, T Trigger] struct {
 }
 
 // State is configured with this configuration.
-func (sc *StateConfiguration[S, T]) State() S {
+func (sc *StateConfiguration[S, _]) State() S {
 	return sc.sr.State
 }
 

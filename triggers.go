@@ -86,11 +86,11 @@ func (t *baseTriggerBehaviour[T]) GetTrigger() T {
 	return t.Trigger
 }
 
-func (t *baseTriggerBehaviour[T]) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
+func (t *baseTriggerBehaviour[_]) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
 	return t.Guard.GuardConditionMet(ctx, args...)
 }
 
-func (t *baseTriggerBehaviour[T]) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
+func (t *baseTriggerBehaviour[_]) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
 	return t.Guard.UnmetGuardConditions(ctx, args...)
 }
 
@@ -113,7 +113,7 @@ type dynamicTriggerBehaviour[S State, T Trigger] struct {
 	Destination func(context.Context, ...interface{}) (S, error)
 }
 
-func (t *dynamicTriggerBehaviour[S, T]) ResultsInTransitionFrom(ctx context.Context, _ S, args ...interface{}) (st S, ok bool) {
+func (t *dynamicTriggerBehaviour[S, _]) ResultsInTransitionFrom(ctx context.Context, _ S, args ...interface{}) (st S, ok bool) {
 	var err error
 	st, err = t.Destination(ctx, args...)
 	if err == nil {
@@ -143,7 +143,7 @@ type triggerWithParameters[T Trigger] struct {
 	ArgumentTypes []reflect.Type
 }
 
-func (t triggerWithParameters[T]) validateParameters(args ...interface{}) {
+func (t triggerWithParameters[_]) validateParameters(args ...interface{}) {
 	if len(args) != len(t.ArgumentTypes) {
 		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}

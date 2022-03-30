@@ -14,7 +14,8 @@ func withTransition(ctx context.Context, transition Transition) context.Context 
 // GetTransition returns the transition from the context.
 // If there is no transition the returned value is empty.
 func GetTransition(ctx context.Context) Transition {
-	return ctx.Value(transitionKey{}).(Transition)
+	tr, _ := ctx.Value(transitionKey{}).(Transition)
+	return tr
 }
 
 // ActionFunc describes a generic action function.

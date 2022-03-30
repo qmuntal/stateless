@@ -1369,3 +1369,8 @@ func TestStateMachine_Firing_Concurrent(t *testing.T) {
 	wg.Wait()
 	assert.False(t, sm.Firing())
 }
+
+func TestGetTransition_ContextEmpty(t *testing.T) {
+	// It should not panic
+	GetTransition(context.Background())
+}

@@ -25,8 +25,8 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
 				dest, lhead := g.resolveTransition(sm, dest)
-				src := fmt.Sprintf("\"cluster_%s-init\"", str(sr.State))
-				sb.WriteString(g.formatOneLine(src, str(dest.State), "", lhead, ""))
+				src := clusterStr(sr.State, true, true)
+				sb.WriteString(g.formatOneLine(src, str(dest.State, true), "", lhead, ""))
 			}
 		}
 	}
@@ -36,7 +36,7 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	initialState, err := sm.State(context.Background())
 	if err == nil {
 		sb.WriteString("\tinit [label=\"\", shape=point];\n")
-		sb.WriteString(fmt.Sprintf("\tinit -> %s\n", str(initialState)))
+		sb.WriteString(fmt.Sprintf("\tinit -> %s\n", str(initialState, true)))
 	}
 	sb.WriteString("}\n")
 	return sb.String()
@@ -45,20 +45,20 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 func (g *graph) formatActions(sr *stateRepresentation) string {
 	es := make([]string, 0, len(sr.EntryActions)+len(sr.ExitActions)+len(sr.ActivateActions)+len(sr.DeactivateActions))
 	for _, act := range sr.ActivateActions {
-		es = append(es, fmt.Sprintf("activated / %s", esc(act.Description.String())))
+		es = append(es, fmt.Sprintf("activated / %s", esc(act.Description.String(), false)))
 	}
 	for _, act := range sr.DeactivateActions {
-		es = append(es, fmt.Sprintf("deactivated / %s", esc(act.Description.String())))
+		es = append(es, fmt.Sprintf("deactivated / %s", esc(act.Description.String(), false)))
 	}
 	for _, act := range sr.EntryActions {
 		if act.Trigger == nil {
-			es = append(es, fmt.Sprintf("entry / %s", esc(act.Description.String())))
+			es = append(es, fmt.Sprintf("entry / %s", esc(act.Description.String(), false)))
 		}
 	}
 	for _, act := range sr.ExitActions {
-		es = append(es, fmt.Sprintf("exit / %s", esc(act.Description.String())))
+		es = append(es, fmt.Sprintf("exit / %s", esc(act.Description.String(), false)))
 	}
-	return strings.Join(es, `\n`)
+	return strings.Join(es, "\n")
 }
 
 func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
@@ -68,9 +68,9 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 	}
 	var sb strings.Builder
 	if len(sr.Substates) == 0 {
-		sb.WriteString(fmt.Sprintf("%s%s [label=\"%s", indent, str(sr.State), str(sr.State)))
+		sb.WriteString(fmt.Sprintf("%s%s [label=\"%s", indent, str(sr.State, true), str(sr.State, false)))
 	} else {
-		sb.WriteString(fmt.Sprintf("%ssubgraph cluster_%s {\n%s\tlabel=\"%s", indent, str(sr.State), indent, str(sr.State)))
+		sb.WriteString(fmt.Sprintf("%ssubgraph %s {\n%s\tlabel=\"%s", indent, clusterStr(sr.State, true, false), indent, str(sr.State, false)))
 	}
 	act := g.formatActions(sr)
 	if act != "" {
@@ -86,7 +86,7 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 	} else {
 		sb.WriteString("\";\n")
 		if sr.HasInitialState {
-			sb.WriteString(fmt.Sprintf("%s\t\"cluster_%s-init\" [label=\"\", shape=point];\n", indent, str(sr.State)))
+			sb.WriteString(fmt.Sprintf("%s\t\"%s\" [label=\"\", shape=point];\n", indent, clusterStr(sr.State, false, true)))
 		}
 		for _, substate := range sr.Substates {
 			sb.WriteString(g.formatOneState(substate, level+1))
@@ -99,8 +99,8 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	var actions []string
 	for _, ea := range ab {
-		if ea.Trigger == nil || *ea.Trigger == t {
-			actions = append(actions, esc(ea.Description.String()))
+		if ea.Trigger != nil && *ea.Trigger == t {
+			actions = append(actions, esc(ea.Description.String(), false))
 		}
 	}
 	return actions
@@ -127,7 +127,7 @@ func getLeafState(sm *StateMachine, sr *stateRepresentation) *stateRepresentatio
 
 func (g *graph) resolveTransition(sm *StateMachine, sr *stateRepresentation) (*stateRepresentation, string) {
 	if anyLeaf := getLeafState(sm, sr); anyLeaf != nil && sr != anyLeaf {
-		return anyLeaf, fmt.Sprintf("cluster_%s", str(sr.State))
+		return anyLeaf, clusterStr(sr.State, false, false)
 	}
 	return sr, ""
 }
@@ -175,7 +175,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 
 func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, ltail, lhead string, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
-	sb.WriteString(str(trigger))
+	sb.WriteString(str(trigger, true))
 	if len(actions) > 0 {
 		sb.WriteString(" / ")
 		sb.WriteString(strings.Join(actions, ", "))
@@ -184,9 +184,9 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 		if sb.Len() > 0 {
 			sb.WriteString(" ")
 		}
-		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String())))
+		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), true)))
 	}
-	return g.formatOneLine(str(source), str(destination), sb.String(), lhead, ltail)
+	return g.formatOneLine(str(source, true), str(destination, true), sb.String(), lhead, ltail)
 }
 
 func (g *graph) formatOneLine(fromNodeName, toNodeName, label, lhead, ltail string) string {
@@ -202,8 +202,16 @@ func (g *graph) formatOneLine(fromNodeName, toNodeName, label, lhead, ltail stri
 	return sb.String()
 }
 
-func str(v interface{}) string {
-	return esc(fmt.Sprint(v))
+func clusterStr(state interface{}, quote, init bool) string {
+	s := fmt.Sprint(state)
+	if init {
+		s += "-init"
+	}
+	return esc("cluster_"+s, quote)
+}
+
+func str(v interface{}, quote bool) string {
+	return esc(fmt.Sprint(v), quote)
 }
 
 func isHTML(s string) bool {
@@ -232,28 +240,19 @@ func isLetter(ch rune) bool {
 }
 
 func isID(s string) bool {
-	var pos bool
-	for i, c := range s {
-		if i == 0 {
-			if !isLetter(c) {
-				return false
-			}
-			pos = true
+	for _, c := range s {
+		if !isLetter(c) {
+			return false
 		}
 		if unicode.IsSpace(c) {
 			return false
 		}
-		if c == '-' {
-			return false
-		}
-		if c == '/' {
-			return false
-		}
-		if c == '.' {
+		switch c {
+		case '-', '/', '.', '@':
 			return false
 		}
 	}
-	return pos
+	return true
 }
 
 func isDigit(ch rune) bool {
@@ -296,7 +295,7 @@ func isStringLit(s string) bool {
 	return true
 }
 
-func esc(s string) string {
+func esc(s string, quote bool) string {
 	if len(s) == 0 {
 		return s
 	}
@@ -305,7 +304,11 @@ func esc(s string) string {
 	}
 	ss := strings.TrimSpace(s)
 	if ss[0] == '<' {
-		return fmt.Sprintf("\"%s\"", strings.Replace(s, "\"", "\\\"", -1))
+		s := strings.Replace(s, "\"", "\\\"", -1)
+		if quote {
+			s = fmt.Sprintf("\"%s\"", s)
+		}
+		return s
 	}
 	if isID(s) {
 		return s
@@ -316,5 +319,30 @@ func esc(s string) string {
 	if isStringLit(s) {
 		return s
 	}
-	return fmt.Sprintf("\"%s\"", template.HTMLEscapeString(s))
+	s = template.HTMLEscapeString(s)
+	if quote {
+		s = fmt.Sprintf("\"%s\"", s)
+	}
+	return s
+}
+
+func quote(s string) string {
+	var quoted bool
+	for _, c := range s {
+		if c == '"' {
+			quoted = true
+			break
+		}
+	}
+	if !quoted {
+		return s
+	}
+	var sb strings.Builder
+	for _, c := range s {
+		if c == '"' {
+			sb.WriteByte('\\')
+		}
+		sb.WriteRune(c)
+	}
+	return sb.String()
 }

@@ -3,6 +3,7 @@ package stateless
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -15,12 +16,20 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 	var sb strings.Builder
 	sb.WriteString("digraph {\n\tcompound=true;\n\tnode [shape=Mrecord];\n\trankdir=\"LR\";\n\n")
 
-	for _, sr := range sm.stateConfig {
+	stateList := make([]*stateRepresentation, 0, len(sm.stateConfig))
+	for _, st := range sm.stateConfig {
+		stateList = append(stateList, st)
+	}
+	sort.Slice(stateList, func(i, j int) bool {
+		return fmt.Sprint(stateList[i].State) < fmt.Sprint(stateList[j].State)
+	})
+
+	for _, sr := range stateList {
 		if sr.Superstate == nil {
 			sb.WriteString(g.formatOneState(sr, 1))
 		}
 	}
-	for _, sr := range sm.stateConfig {
+	for _, sr := range stateList {
 		if sr.HasInitialState {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
@@ -30,7 +39,7 @@ func (g *graph) FormatStateMachine(sm *StateMachine) string {
 			}
 		}
 	}
-	for _, sr := range sm.stateConfig {
+	for _, sr := range stateList {
 		sb.WriteString(g.formatAllStateTransitions(sm, sr))
 	}
 	initialState, err := sm.State(context.Background())
@@ -134,40 +143,51 @@ func (g *graph) resolveTransition(sm *StateMachine, sr *stateRepresentation) (*s
 
 func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentation) string {
 	var sb strings.Builder
+
+	triggerList := make([]triggerBehaviour, 0, len(sr.TriggerBehaviours))
 	for _, triggers := range sr.TriggerBehaviours {
 		for _, trigger := range triggers {
-			switch t := trigger.(type) {
-			case *ignoredTriggerBehaviour:
-				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", nil, t.Guard))
-			case *reentryTriggerBehaviour:
-				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-				sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, "", "", actions, t.Guard))
-			case *internalTriggerBehaviour:
-				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", actions, t.Guard))
-			case *transitioningTriggerBehaviour:
-				src := sm.stateConfig[sr.State]
-				if src == nil {
-					return ""
-				}
-				dest := sm.stateConfig[t.Destination]
-				var ltail, lhead string
-				var actions []string
-				src, ltail = g.resolveTransition(sm, src)
-				if dest != nil {
-					dest, lhead = g.resolveTransition(sm, dest)
-					actions = g.getEntryActions(dest.EntryActions, t.Trigger)
-				}
-				var destState State
-				if dest == nil {
-					destState = t.Destination
-				} else {
-					destState = dest.State
-				}
-				sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, ltail, lhead, actions, t.Guard))
-			case *dynamicTriggerBehaviour:
-				// TODO: not supported yet
+			triggerList = append(triggerList, trigger)
+		}
+	}
+	sort.Slice(triggerList, func(i, j int) bool {
+		ti := triggerList[i].GetTrigger()
+		tj := triggerList[j].GetTrigger()
+		return fmt.Sprint(ti) < fmt.Sprint(tj)
+	})
+
+	for _, trigger := range triggerList {
+		switch t := trigger.(type) {
+		case *ignoredTriggerBehaviour:
+			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", nil, t.Guard))
+		case *reentryTriggerBehaviour:
+			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+			sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, "", "", actions, t.Guard))
+		case *internalTriggerBehaviour:
+			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", actions, t.Guard))
+		case *transitioningTriggerBehaviour:
+			src := sm.stateConfig[sr.State]
+			if src == nil {
+				return ""
 			}
+			dest := sm.stateConfig[t.Destination]
+			var ltail, lhead string
+			var actions []string
+			src, ltail = g.resolveTransition(sm, src)
+			if dest != nil {
+				dest, lhead = g.resolveTransition(sm, dest)
+				actions = g.getEntryActions(dest.EntryActions, t.Trigger)
+			}
+			var destState State
+			if dest == nil {
+				destState = t.Destination
+			} else {
+				destState = dest.State
+			}
+			sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, ltail, lhead, actions, t.Guard))
+		case *dynamicTriggerBehaviour:
+			// TODO: not supported yet
 		}
 	}
 	return sb.String()

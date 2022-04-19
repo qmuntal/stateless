@@ -1,0 +1,14 @@
+digraph {
+	compound=true;
+	node [shape=Mrecord];
+	rankdir="LR";
+
+	subgraph cluster_A {
+		label="A";
+		B [label="B"];
+	}
+	B -> D [label="X [func1]", ltail="cluster_A"];
+	B -> C [label="X [func2]"];
+	init [label="", shape=point];
+	init -> B
+}

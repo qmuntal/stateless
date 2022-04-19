@@ -2,6 +2,7 @@ package stateless_test
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"os"
 	"reflect"
@@ -40,11 +41,28 @@ func withInitialState() *stateless.StateMachine {
 	return sm
 }
 
+func withGuards() *stateless.StateMachine {
+	sm := stateless.NewStateMachine("B")
+	sm.SetTriggerParameters("X", reflect.TypeOf(0))
+	sm.Configure("A").
+		Permit("X", "D", func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 3
+		})
+
+	sm.Configure("B").
+		SubstateOf("A").
+		Permit("X", "C", func(_ context.Context, args ...interface{}) bool {
+			return args[0].(int) == 2
+		})
+	return sm
+}
+
 func TestStateMachine_ToGraph(t *testing.T) {
 	tests := []func() *stateless.StateMachine{
 		emptyWithInitial,
 		withSubstate,
 		withInitialState,
+		withGuards,
 	}
 	for _, fn := range tests {
 		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()

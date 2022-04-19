@@ -1,0 +1,8 @@
+digraph {
+	compound=true;
+	node [shape=Mrecord];
+	rankdir="LR";
+
+	init [label="", shape=point];
+	init -> A
+}

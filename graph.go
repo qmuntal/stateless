@@ -204,7 +204,7 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 		if sb.Len() > 0 {
 			sb.WriteString(" ")
 		}
-		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), true)))
+		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), false)))
 	}
 	return g.formatOneLine(str(source, true), str(destination, true), sb.String(), lhead, ltail)
 }

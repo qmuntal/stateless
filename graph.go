@@ -12,7 +12,7 @@ import (
 type graph struct {
 }
 
-func (g *graph) FormatStateMachine(sm *StateMachine) string {
+func (g *graph) formatStateMachine(sm *StateMachine) string {
 	var sb strings.Builder
 	sb.WriteString("digraph {\n\tcompound=true;\n\tnode [shape=Mrecord];\n\trankdir=\"LR\";\n\n")
 

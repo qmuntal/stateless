@@ -1,0 +1,25 @@
+digraph {
+	compound=true;
+	node [shape=Mrecord];
+	rankdir="LR";
+
+	Ĕ [label="Ĕ"];
+	subgraph cluster_ų {
+		label="ų";
+		"cluster_ų-init" [label="", shape=point];
+		ㇴ [label="ㇴ"];
+	}
+	subgraph cluster_𒀄 {
+		label="𒀄";
+		ꬠ [label="ꬠ"];
+		subgraph "cluster_1" {
+			label="1";
+			2 [label="2"];
+		}
+	}
+	"cluster_ų-init" -> ꬠ [label="", lhead="cluster_ㇴ"];
+	"cluster_ㇴ-init" -> ꬠ [label=""];
+	Ĕ -> ꬠ [label="◵ [œ]", lhead="cluster_ų"];
+	init [label="", shape=point];
+	init -> Ĕ
+}

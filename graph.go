@@ -195,7 +195,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 
 func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, ltail, lhead string, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
-	sb.WriteString(str(trigger, true))
+	sb.WriteString(str(trigger, false))
 	if len(actions) > 0 {
 		sb.WriteString(" / ")
 		sb.WriteString(strings.Join(actions, ", "))

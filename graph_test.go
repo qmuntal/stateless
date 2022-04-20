@@ -28,7 +28,7 @@ func withSubstate() *stateless.StateMachine {
 }
 
 func withInitialState() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("A")
+	sm := stateless.NewStateMachine("AA")
 	sm.Configure("A").
 		Permit("X", "B")
 	sm.Configure("B").

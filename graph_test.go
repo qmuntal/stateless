@@ -57,12 +57,35 @@ func withGuards() *stateless.StateMachine {
 	return sm
 }
 
+func œ(_ context.Context, args ...interface{}) bool {
+	return args[0].(int) == 2
+}
+
+func withUnicodeNames() *stateless.StateMachine {
+	sm := stateless.NewStateMachine("Ĕ")
+	sm.Configure("Ĕ").
+		Permit("◵", "ų", œ)
+	sm.Configure("ų").
+		InitialTransition("ㇴ")
+	sm.Configure("ㇴ").
+		InitialTransition("ꬠ").
+		SubstateOf("ų")
+	sm.Configure("ꬠ").
+		SubstateOf("𒀄")
+	sm.Configure("1").
+		SubstateOf("𒀄")
+	sm.Configure("2").
+		SubstateOf("1")
+	return sm
+}
+
 func TestStateMachine_ToGraph(t *testing.T) {
 	tests := []func() *stateless.StateMachine{
 		emptyWithInitial,
 		withSubstate,
 		withInitialState,
 		withGuards,
+		withUnicodeNames,
 	}
 	for _, fn := range tests {
 		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()

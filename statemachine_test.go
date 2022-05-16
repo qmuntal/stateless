@@ -317,6 +317,14 @@ func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(
 	assert.Panics(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
 }
 
+func TestStateMachine_SetTriggerParameters_Interfaces(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf((*error)(nil)).Elem())
+
+	sm.Configure(stateB).Permit(triggerX, stateA)
+	assert.NotPanics(t, func() { sm.Fire(triggerX, errors.New("failed")) })
+}
+
 func TestStateMachine_SetTriggerParameters_Invalid(t *testing.T) {
 	sm := NewStateMachine(stateB)
 

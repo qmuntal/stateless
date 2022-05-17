@@ -148,8 +148,10 @@ func (t triggerWithParameters) validateParameters(args ...interface{}) {
 		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}
 	for i := range t.ArgumentTypes {
-		if t.ArgumentTypes[i] != reflect.TypeOf(args[i]) {
-			panic(fmt.Sprintf("stateless: The argument in position '%d' is of type '%v' but must be of type '%v'.", i, reflect.TypeOf(args[i]), t.ArgumentTypes[i]))
+		tp := reflect.TypeOf(args[i])
+		want := t.ArgumentTypes[i]
+		if !tp.ConvertibleTo(want) {
+			panic(fmt.Sprintf("stateless: The argument in position '%d' is of type '%v' but must be convertible to '%v'.", i, tp, want))
 		}
 	}
 }

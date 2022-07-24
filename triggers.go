@@ -113,15 +113,6 @@ type dynamicTriggerBehaviour struct {
 	Destination func(context.Context, ...interface{}) (State, error)
 }
 
-func (t *dynamicTriggerBehaviour) ResultsInTransitionFrom(ctx context.Context, _ State, args ...interface{}) (st State, ok bool) {
-	var err error
-	st, err = t.Destination(ctx, args...)
-	if err == nil {
-		ok = true
-	}
-	return
-}
-
 type internalTriggerBehaviour struct {
 	baseTriggerBehaviour
 	Action ActionFunc

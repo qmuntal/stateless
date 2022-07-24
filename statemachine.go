@@ -381,10 +381,9 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
 		err = sm.handleReentryTrigger(ctx, representativeState, transition, args...)
 	case *dynamicTriggerBehaviour:
-		destination, ok := t.ResultsInTransitionFrom(ctx, source, args...)
-		if !ok {
-			err = fmt.Errorf("stateless: Dynamic handler for trigger %v in state %v has failed", trigger, source)
-		} else {
+		var destination interface{}
+		destination, err = t.Destination(ctx, args...)
+		if err == nil {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}

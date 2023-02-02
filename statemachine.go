@@ -64,8 +64,7 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 // It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
 // so it is up to the client to protect them against race conditions.
 type StateMachine struct {
-	// ops is accessed atomically so we put it at the beginning of the struct to achieve 64 bit alignment
-	ops                    uint64
+	ops                    atomic.Uint64
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]triggerWithParameters
 	stateAccessor          func(context.Context) (State, error)
@@ -276,7 +275,7 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 
 // Firing returns true when the state machine is processing a trigger.
 func (sm *StateMachine) Firing() bool {
-	return atomic.LoadUint64(&sm.ops) != 0
+	return sm.ops.Load() != 0
 }
 
 // String returns a human-readable representation of the state machine.
@@ -356,8 +355,8 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 }
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
-	atomic.AddUint64(&sm.ops, 1)
-	defer atomic.AddUint64(&sm.ops, ^uint64(0))
+	sm.ops.Add(1)
+	defer sm.ops.Add(^uint64(0))
 	var (
 		config triggerWithParameters
 		ok     bool

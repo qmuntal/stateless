@@ -31,19 +31,19 @@ func (inv invocationInfo) String() string {
 	return "<nil>"
 }
 
-type guardCondition struct {
-	Guard       GuardFunc
+type guardCondition[T any] struct {
+	Guard       GuardFunc[T]
 	Description invocationInfo
 }
 
-type transitionGuard struct {
-	Guards []guardCondition
+type transitionGuard[T any] struct {
+	Guards []guardCondition[T]
 }
 
-func newtransitionGuard(guards ...GuardFunc) transitionGuard {
-	tg := transitionGuard{Guards: make([]guardCondition, len(guards))}
+func newtransitionGuard[T any](guards ...GuardFunc[T]) transitionGuard[T] {
+	tg := transitionGuard[T]{Guards: make([]guardCondition[T], len(guards))}
 	for i, guard := range guards {
-		tg.Guards[i] = guardCondition{
+		tg.Guards[i] = guardCondition[T]{
 			Guard:       guard,
 			Description: newinvocationInfo(guard),
 		}
@@ -52,79 +52,79 @@ func newtransitionGuard(guards ...GuardFunc) transitionGuard {
 }
 
 // GuardConditionsMet is true if all of the guard functions return true.
-func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
+func (t transitionGuard[T]) GuardConditionMet(ctx context.Context, extendedState T, args ...interface{}) bool {
 	for _, guard := range t.Guards {
-		if !guard.Guard(ctx, args...) {
+		if !guard.Guard(ctx, extendedState, args...) {
 			return false
 		}
 	}
 	return true
 }
 
-func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
+func (t transitionGuard[T]) UnmetGuardConditions(ctx context.Context, extendedState T, args ...interface{}) []string {
 	unmet := make([]string, 0, len(t.Guards))
 	for _, guard := range t.Guards {
-		if !guard.Guard(ctx, args...) {
+		if !guard.Guard(ctx, extendedState, args...) {
 			unmet = append(unmet, guard.Description.String())
 		}
 	}
 	return unmet
 }
 
-type triggerBehaviour interface {
-	GuardConditionMet(context.Context, ...interface{}) bool
-	UnmetGuardConditions(context.Context, ...interface{}) []string
+type triggerBehaviour[T any] interface {
+	GuardConditionMet(context.Context, T, ...interface{}) bool
+	UnmetGuardConditions(context.Context, T, ...interface{}) []string
 	GetTrigger() Trigger
 }
 
-type baseTriggerBehaviour struct {
-	Guard   transitionGuard
+type baseTriggerBehaviour[T any] struct {
+	Guard   transitionGuard[T]
 	Trigger Trigger
 }
 
-func (t *baseTriggerBehaviour) GetTrigger() Trigger {
+func (t *baseTriggerBehaviour[T]) GetTrigger() Trigger {
 	return t.Trigger
 }
 
-func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
-	return t.Guard.GuardConditionMet(ctx, args...)
+func (t *baseTriggerBehaviour[T]) GuardConditionMet(ctx context.Context, extendedState T, args ...interface{}) bool {
+	return t.Guard.GuardConditionMet(ctx, extendedState, args...)
 }
 
-func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
-	return t.Guard.UnmetGuardConditions(ctx, args...)
+func (t *baseTriggerBehaviour[T]) UnmetGuardConditions(ctx context.Context, extendedState T, args ...interface{}) []string {
+	return t.Guard.UnmetGuardConditions(ctx, extendedState, args...)
 }
 
-type ignoredTriggerBehaviour struct {
-	baseTriggerBehaviour
+type ignoredTriggerBehaviour[T any] struct {
+	baseTriggerBehaviour[T]
 }
 
-type reentryTriggerBehaviour struct {
-	baseTriggerBehaviour
+type reentryTriggerBehaviour[T any] struct {
+	baseTriggerBehaviour[T]
 	Destination State
 }
 
-type transitioningTriggerBehaviour struct {
-	baseTriggerBehaviour
+type transitioningTriggerBehaviour[T any] struct {
+	baseTriggerBehaviour[T]
 	Destination State
 }
 
-type dynamicTriggerBehaviour struct {
-	baseTriggerBehaviour
+type dynamicTriggerBehaviour[T any] struct {
+	baseTriggerBehaviour[T]
 	Destination func(context.Context, ...interface{}) (State, error)
 }
 
-type internalTriggerBehaviour struct {
-	baseTriggerBehaviour
-	Action ActionFunc
+type internalTriggerBehaviour[T any] struct {
+	baseTriggerBehaviour[T]
+	Action ActionFunc[T]
 }
 
-func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
+func (t *internalTriggerBehaviour[T]) Execute(ctx context.Context, transition Transition, extendedState T, args ...interface{}) error {
 	ctx = withTransition(ctx, transition)
-	return t.Action(ctx, args...)
+	return t.Action(ctx, extendedState, args...)
 }
 
-type triggerBehaviourResult struct {
-	Handler              triggerBehaviour
+type triggerBehaviourResult[T any] struct {
+	Handler              triggerBehaviour[T]
 	UnmetGuardConditions []string
 }
 

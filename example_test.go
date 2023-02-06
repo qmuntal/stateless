@@ -28,8 +28,12 @@ const (
 	statePhoneDestroyed = "PhoneDestroyed"
 )
 
+type phoneProps struct {
+	volume int
+}
+
 func Example() {
-	phoneCall := stateless.NewStateMachine(stateOffHook)
+	phoneCall := stateless.NewStateMachine(stateOffHook, &phoneProps{volume: 0})
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
@@ -37,7 +41,7 @@ func Example() {
 		Permit(triggerCallDialed, stateRinging)
 
 	phoneCall.Configure(stateRinging).
-		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, es *phoneProps, args ...interface{}) error {
 			onDialed(args[0].(string))
 			return nil
 		}).
@@ -45,19 +49,20 @@ func Example() {
 
 	phoneCall.Configure(stateConnected).
 		OnEntry(startCallTimer).
-		OnExit(func(_ context.Context, _ ...interface{}) error {
+		OnExit(func(_ context.Context, _ *phoneProps, _ ...interface{}) error {
 			stopCallTimer()
 			return nil
 		}).
-		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ *phoneProps, _ ...interface{}) error {
 			onMute()
 			return nil
 		}).
-		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ *phoneProps, _ ...interface{}) error {
 			onUnmute()
 			return nil
 		}).
-		InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
+		InternalTransition(triggerSetVolume, func(ctx context.Context, es *phoneProps, args ...interface{}) error {
+			es.volume = args[0].(int)
 			onSetVolume(args[0].(int))
 			return nil
 		}).
@@ -81,7 +86,7 @@ func Example() {
 	phoneCall.Fire(triggerSetVolume, 11)
 	phoneCall.Fire(triggerPlacedOnHold)
 	phoneCall.Fire(triggerPhoneHurledAgainstWall)
-	fmt.Printf("State is %v\n", phoneCall.MustState())
+	fmt.Printf("State is %v with extended state %v\n", phoneCall.MustState(), phoneCall.ExtendedState())
 
 	// Output:
 	// [Phone Call] placed for : [qmuntal]
@@ -91,8 +96,7 @@ func Example() {
 	// Microphone unmuted!
 	// Volume set to 11!
 	// [Timer:] Call ended at 11:30am
-	// State is PhoneDestroyed
-
+	// State is PhoneDestroyed with extended state &{11}
 }
 
 func onSetVolume(volume int) {
@@ -111,7 +115,7 @@ func onDialed(callee string) {
 	fmt.Printf("[Phone Call] placed for : [%s]\n", callee)
 }
 
-func startCallTimer(_ context.Context, _ ...interface{}) error {
+func startCallTimer(_ context.Context, _ *phoneProps, _ ...interface{}) error {
 	fmt.Println("[Timer:] Call started at 11:00am")
 	return nil
 }

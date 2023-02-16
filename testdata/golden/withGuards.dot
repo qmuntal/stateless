@@ -3,11 +3,13 @@ digraph {
 	node [shape=Mrecord];
 	rankdir="LR";
 
+	A [label="A"];
 	subgraph cluster_A {
-		label="A";
+		label="Substates of\nA";
+		style="dashed";
 		B [label="B"];
 	}
-	B -> D [label="X [func1]", ltail="cluster_A"];
+	A -> D [label="X [func1]"];
 	B -> C [label="X [func2]"];
 	init [label="", shape=point];
 	init -> B

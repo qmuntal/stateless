@@ -4,22 +4,28 @@ digraph {
 	rankdir="LR";
 
 	Ĕ [label="Ĕ"];
+	ų [label="ų"];
 	subgraph cluster_ų {
-		label="ų";
+		label="Substates of\nų";
+		style="dashed";
 		"cluster_ų-init" [label="", shape=point];
 		ㇴ [label="ㇴ"];
 	}
+	𒀄 [label="𒀄"];
 	subgraph cluster_𒀄 {
-		label="𒀄";
+		label="Substates of\n𒀄";
+		style="dashed";
 		ꬠ [label="ꬠ"];
+		1 [label="1"];
 		subgraph "cluster_1" {
-			label="1";
+			label="Substates of\n1";
+			style="dashed";
 			2 [label="2"];
 		}
 	}
-	"cluster_ų-init" -> ꬠ [label="", lhead="cluster_ㇴ"];
+	"cluster_ų-init" -> ㇴ [label=""];
 	"cluster_ㇴ-init" -> ꬠ [label=""];
-	Ĕ -> ꬠ [label="◵ [œ]", lhead="cluster_ų"];
+	Ĕ -> ų [label="◵ [œ]"];
 	init [label="", shape=point];
 	init -> Ĕ
 }

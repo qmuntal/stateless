@@ -33,9 +33,8 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 		if sr.HasInitialState {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
-				dest, lhead := g.resolveTransition(sm, dest)
 				src := clusterStr(sr.State, true, true)
-				sb.WriteString(g.formatOneLine(src, str(dest.State, true), "", lhead, ""))
+				sb.WriteString(g.formatOneLine(src, str(dest.State, true), ""))
 			}
 		}
 	}
@@ -67,7 +66,7 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 	for _, act := range sr.ExitActions {
 		es = append(es, fmt.Sprintf("exit / %s", esc(act.Description.String(), false)))
 	}
-	return strings.Join(es, "\n")
+	return strings.Join(es, "\\n")
 }
 
 func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
@@ -76,11 +75,7 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 		indent += "\t"
 	}
 	var sb strings.Builder
-	if len(sr.Substates) == 0 {
-		sb.WriteString(fmt.Sprintf("%s%s [label=\"%s", indent, str(sr.State, true), str(sr.State, false)))
-	} else {
-		sb.WriteString(fmt.Sprintf("%ssubgraph %s {\n%s\tlabel=\"%s", indent, clusterStr(sr.State, true, false), indent, str(sr.State, false)))
-	}
+	sb.WriteString(fmt.Sprintf("%s%s [label=\"%s", indent, str(sr.State, true), str(sr.State, false)))
 	act := g.formatActions(sr)
 	if act != "" {
 		if len(sr.Substates) == 0 {
@@ -90,10 +85,10 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 		}
 		sb.WriteString(act)
 	}
-	if len(sr.Substates) == 0 {
-		sb.WriteString("\"];\n")
-	} else {
-		sb.WriteString("\";\n")
+	sb.WriteString("\"];\n")
+	if len(sr.Substates) != 0 {
+		sb.WriteString(fmt.Sprintf("%ssubgraph %s {\n%s\tlabel=\"Substates of\\n%s\";\n", indent, clusterStr(sr.State, true, false), indent, str(sr.State, false)))
+		sb.WriteString(fmt.Sprintf("%s\tstyle=\"dashed\";\n", indent))
 		if sr.HasInitialState {
 			sb.WriteString(fmt.Sprintf("%s\t\"%s\" [label=\"\", shape=point];\n", indent, clusterStr(sr.State, false, true)))
 		}
@@ -115,40 +110,12 @@ func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	return actions
 }
 
-func getLeafState(sm *StateMachine, sr *stateRepresentation) *stateRepresentation {
-	if sr.HasInitialState {
-		s, ok := sm.stateConfig[sr.InitialTransitionTarget]
-		if !ok {
-			return nil
-		}
-		return getLeafState(sm, s)
-	}
-	for _, s := range sr.Substates {
-		if len(s.Substates) == 0 {
-			return s
-		}
-		if s = getLeafState(sm, s); s != nil {
-			return s
-		}
-	}
-	return sr
-}
-
-func (g *graph) resolveTransition(sm *StateMachine, sr *stateRepresentation) (*stateRepresentation, string) {
-	if anyLeaf := getLeafState(sm, sr); anyLeaf != nil && sr != anyLeaf {
-		return anyLeaf, clusterStr(sr.State, false, false)
-	}
-	return sr, ""
-}
-
 func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentation) string {
 	var sb strings.Builder
 
 	triggerList := make([]triggerBehaviour, 0, len(sr.TriggerBehaviours))
 	for _, triggers := range sr.TriggerBehaviours {
-		for _, trigger := range triggers {
-			triggerList = append(triggerList, trigger)
-		}
+		triggerList = append(triggerList, triggers...)
 	}
 	sort.Slice(triggerList, func(i, j int) bool {
 		ti := triggerList[i].GetTrigger()
@@ -159,24 +126,21 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 	for _, trigger := range triggerList {
 		switch t := trigger.(type) {
 		case *ignoredTriggerBehaviour:
-			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", nil, t.Guard))
+			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, nil, t.Guard))
 		case *reentryTriggerBehaviour:
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-			sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, "", "", actions, t.Guard))
+			sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, actions, t.Guard))
 		case *internalTriggerBehaviour:
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, "", "", actions, t.Guard))
+			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, actions, t.Guard))
 		case *transitioningTriggerBehaviour:
 			src := sm.stateConfig[sr.State]
 			if src == nil {
 				return ""
 			}
 			dest := sm.stateConfig[t.Destination]
-			var ltail, lhead string
 			var actions []string
-			src, ltail = g.resolveTransition(sm, src)
 			if dest != nil {
-				dest, lhead = g.resolveTransition(sm, dest)
 				actions = g.getEntryActions(dest.EntryActions, t.Trigger)
 			}
 			var destState State
@@ -185,7 +149,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 			} else {
 				destState = dest.State
 			}
-			sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, ltail, lhead, actions, t.Guard))
+			sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, actions, t.Guard))
 		case *dynamicTriggerBehaviour:
 			// TODO: not supported yet
 		}
@@ -193,7 +157,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 	return sb.String()
 }
 
-func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, ltail, lhead string, actions []string, guards transitionGuard) string {
+func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
 	sb.WriteString(str(trigger, false))
 	if len(actions) > 0 {
@@ -206,18 +170,12 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 		}
 		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), false)))
 	}
-	return g.formatOneLine(str(source, true), str(destination, true), sb.String(), lhead, ltail)
+	return g.formatOneLine(str(source, true), str(destination, true), sb.String())
 }
 
-func (g *graph) formatOneLine(fromNodeName, toNodeName, label, lhead, ltail string) string {
+func (g *graph) formatOneLine(fromNodeName, toNodeName, label string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
-	if lhead != "" {
-		sb.WriteString(fmt.Sprintf(", lhead=\"%s\"", lhead))
-	}
-	if ltail != "" {
-		sb.WriteString(fmt.Sprintf(", ltail=\"%s\"", ltail))
-	}
 	sb.WriteString("];\n")
 	return sb.String()
 }
@@ -344,25 +302,4 @@ func esc(s string, quote bool) string {
 		s = fmt.Sprintf("\"%s\"", s)
 	}
 	return s
-}
-
-func quote(s string) string {
-	var quoted bool
-	for _, c := range s {
-		if c == '"' {
-			quoted = true
-			break
-		}
-	}
-	if !quoted {
-		return s
-	}
-	var sb strings.Builder
-	for _, c := range s {
-		if c == '"' {
-			sb.WriteByte('\\')
-		}
-		sb.WriteRune(c)
-	}
-	return sb.String()
 }

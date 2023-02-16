@@ -1,0 +1,25 @@
+digraph {
+	compound=true;
+	node [shape=Mrecord];
+	rankdir="LR";
+
+	Connected [label="Connected\n----------\nentry / startCallTimer\nexit / func2"];
+	subgraph cluster_Connected {
+		label="Substates of\nConnected";
+		style="dashed";
+		OnHold [label="OnHold"];
+	}
+	OffHook [label="OffHook"];
+	Ringing [label="Ringing"];
+	Connected -> OffHook [label="LeftMessage"];
+	Connected -> Connected [label="MuteMicrophone"];
+	Connected -> OnHold [label="PlacedOnHold"];
+	Connected -> Connected [label="SetVolume"];
+	Connected -> Connected [label="UnmuteMicrophone"];
+	OffHook -> Ringing [label="CallDialed / func1"];
+	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall"];
+	OnHold -> Connected [label="TakenOffHold"];
+	Ringing -> Connected [label="CallConnected"];
+	init [label="", shape=point];
+	init -> OffHook
+}

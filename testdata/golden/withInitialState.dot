@@ -4,18 +4,22 @@ digraph {
 	rankdir="LR";
 
 	A [label="A"];
+	B [label="B"];
 	subgraph cluster_B {
-		label="B";
+		label="Substates of\nB";
+		style="dashed";
 		"cluster_B-init" [label="", shape=point];
+		C [label="C"];
 		subgraph cluster_C {
-			label="C";
+			label="Substates of\nC";
+			style="dashed";
 			"cluster_C-init" [label="", shape=point];
 			D [label="D"];
 		}
 	}
-	"cluster_B-init" -> D [label="", lhead="cluster_C"];
+	"cluster_B-init" -> C [label=""];
 	"cluster_C-init" -> D [label=""];
-	A -> D [label="X", lhead="cluster_B"];
+	A -> B [label="X"];
 	init [label="", shape=point];
 	init -> A
 }

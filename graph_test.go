@@ -79,6 +79,45 @@ func withUnicodeNames() *stateless.StateMachine {
 	return sm
 }
 
+func phoneCall() *stateless.StateMachine {
+	phoneCall := stateless.NewStateMachine(stateOffHook)
+	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
+	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
+
+	phoneCall.Configure(stateOffHook).
+		Permit(triggerCallDialed, stateRinging)
+
+	phoneCall.Configure(stateRinging).
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+			return nil
+		}).
+		Permit(triggerCallConnected, stateConnected)
+
+	phoneCall.Configure(stateConnected).
+		OnEntry(startCallTimer).
+		OnExit(func(_ context.Context, _ ...interface{}) error {
+			return nil
+		}).
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+			return nil
+		}).
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+			return nil
+		}).
+		InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
+			return nil
+		}).
+		Permit(triggerLeftMessage, stateOffHook).
+		Permit(triggerPlacedOnHold, stateOnHold)
+
+	phoneCall.Configure(stateOnHold).
+		SubstateOf(stateConnected).
+		Permit(triggerTakenOffHold, stateConnected).
+		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
+
+	return phoneCall
+}
+
 func TestStateMachine_ToGraph(t *testing.T) {
 	tests := []func() *stateless.StateMachine{
 		emptyWithInitial,
@@ -86,6 +125,7 @@ func TestStateMachine_ToGraph(t *testing.T) {
 		withInitialState,
 		withGuards,
 		withUnicodeNames,
+		phoneCall,
 	}
 	for _, fn := range tests {
 		name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()

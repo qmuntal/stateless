@@ -217,11 +217,9 @@ func TestStateMachine_PermittedTriggers_PermittedTriggersAreDistinctValues(t *te
 
 	permitted, _ := sm.PermittedTriggers(context.Background())
 
-	if got := len(permitted); got != 1 {
-		t.Fatalf("PermittedTriggers() = %v, want %v", got, 1)
-	}
-	if got := permitted[0]; got != triggerX {
-		t.Errorf("PermittedTriggers() = %v, want %v", got, triggerX)
+	want := []any{triggerX}
+	if !reflect.DeepEqual(permitted, want) {
+		t.Errorf("PermittedTriggers() = %v, want %v", permitted, want)
 	}
 }
 

@@ -296,14 +296,9 @@ func Test_stateRepresentation_Enter_ActionsExecuteInOrder(t *testing.T) {
 	})
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
 	sr.Enter(context.Background(), transition)
-	if got := len(actual); got != 2 {
-		t.Fatalf("expected 2 actions to be executed, got %d", got)
-	}
-	if got := actual[0]; got != 0 {
-		t.Errorf("expected action 0 to be executed first, got %d", got)
-	}
-	if got := actual[1]; got != 1 {
-		t.Errorf("expected action 1 to be executed second, got %d", got)
+	want := []int{0, 1}
+	if !reflect.DeepEqual(actual, want) {
+		t.Errorf("expected %v, got %v", want, actual)
 	}
 }
 
@@ -466,14 +461,9 @@ func Test_stateRepresentation_Exit_ActionsExecuteInOrder(t *testing.T) {
 	})
 	transition := Transition{Source: stateB, Destination: stateC, Trigger: triggerX}
 	sr.Exit(context.Background(), transition)
-	if got := len(actual); got != 2 {
-		t.Fatalf("expected 2 actions to be executed, got %d", got)
-	}
-	if got := actual[0]; got != 0 {
-		t.Errorf("expected action 0 to be executed first, got %d", got)
-	}
-	if got := actual[1]; got != 1 {
-		t.Errorf("expected action 1 to be executed second, got %d", got)
+	want := []int{0, 1}
+	if !reflect.DeepEqual(actual, want) {
+		t.Errorf("expected %v, got %v", want, actual)
 	}
 }
 

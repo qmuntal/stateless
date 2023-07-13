@@ -7,8 +7,6 @@ import (
 	"reflect"
 	"sync"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -42,7 +40,9 @@ func TestTransition_IsReentry(t *testing.T) {
 
 func TestStateMachine_NewStateMachine(t *testing.T) {
 	sm := NewStateMachine(stateA)
-	assert.Equal(t, stateA, sm.MustState())
+	if got := sm.MustState(); got != stateA {
+		t.Errorf("MustState() = %v, want %v", got, stateA)
+	}
 }
 
 func TestStateMachine_NewStateMachineWithExternalStorage(t *testing.T) {
@@ -54,20 +54,31 @@ func TestStateMachine_NewStateMachineWithExternalStorage(t *testing.T) {
 		return nil
 	}, FiringImmediate)
 	sm.Configure(stateB).Permit(triggerX, stateC)
-	assert.Equal(t, stateB, sm.MustState())
-	assert.Equal(t, stateB, state)
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("MustState() = %v, want %v", got, stateB)
+	}
+	if state != stateB {
+		t.Errorf("expected state to be %v, got %v", stateB, state)
+	}
 	sm.Fire(triggerX)
-	assert.Equal(t, stateC, sm.MustState())
-	assert.Equal(t, stateC, state)
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("MustState() = %v, want %v", got, stateC)
+	}
+	if state != stateC {
+		t.Errorf("expected state to be %v, got %v", stateC, state)
+	}
 }
 
 func TestStateMachine_Configure_SubstateIsIncludedInCurrentState(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	sm.Configure(stateB).SubstateOf(stateC)
-	ok, _ := sm.IsInState(stateC)
+	if ok, _ := sm.IsInState(stateC); !ok {
+		t.Errorf("IsInState() = %v, want %v", ok, true)
+	}
 
-	assert.Equal(t, stateB, sm.MustState())
-	assert.True(t, ok)
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_Configure_InSubstate_TriggerIgnoredInSuperstate_RemainsInSubstate(t *testing.T) {
@@ -76,16 +87,20 @@ func TestStateMachine_Configure_InSubstate_TriggerIgnoredInSuperstate_RemainsInS
 	sm.Configure(stateC).Ignore(triggerX)
 	sm.Fire(triggerX)
 
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_CanFire(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	sm.Configure(stateB).Permit(triggerX, stateA)
-	okX, _ := sm.CanFire(triggerX)
-	okY, _ := sm.CanFire(triggerY)
-	assert.True(t, okX)
-	assert.False(t, okY)
+	if ok, _ := sm.CanFire(triggerX); !ok {
+		t.Errorf("CanFire() = %v, want %v", ok, true)
+	}
+	if ok, _ := sm.CanFire(triggerY); ok {
+		t.Errorf("CanFire() = %v, want %v", ok, false)
+	}
 }
 
 func TestStateMachine_CanFire_StatusError(t *testing.T) {
@@ -96,8 +111,13 @@ func TestStateMachine_CanFire_StatusError(t *testing.T) {
 	sm.Configure(stateB).Permit(triggerX, stateA)
 
 	ok, err := sm.CanFire(triggerX)
-	assert.False(t, ok)
-	assert.EqualError(t, err, "status error")
+	if ok {
+		t.Fail()
+	}
+	want := "status error"
+	if err == nil || err.Error() != want {
+		t.Errorf("CanFire() = %v, want %v", err, want)
+	}
 }
 
 func TestStateMachine_IsInState_StatusError(t *testing.T) {
@@ -106,8 +126,13 @@ func TestStateMachine_IsInState_StatusError(t *testing.T) {
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
 	ok, err := sm.IsInState(stateA)
-	assert.False(t, ok)
-	assert.EqualError(t, err, "status error")
+	if ok {
+		t.Fail()
+	}
+	want := "status error"
+	if err == nil || err.Error() != want {
+		t.Errorf("IsInState() = %v, want %v", err, want)
+	}
 }
 
 func TestStateMachine_Activate_StatusError(t *testing.T) {
@@ -115,8 +140,13 @@ func TestStateMachine_Activate_StatusError(t *testing.T) {
 		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
-	assert.EqualError(t, sm.Activate(), "status error")
-	assert.EqualError(t, sm.Deactivate(), "status error")
+	want := "status error"
+	if err := sm.Activate(); err == nil || err.Error() != want {
+		t.Errorf("Activate() = %v, want %v", err, want)
+	}
+	if err := sm.Deactivate(); err == nil || err.Error() != want {
+		t.Errorf("Deactivate() = %v, want %v", err, want)
+	}
 }
 
 func TestStateMachine_PermittedTriggers_StatusError(t *testing.T) {
@@ -124,8 +154,10 @@ func TestStateMachine_PermittedTriggers_StatusError(t *testing.T) {
 		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
-	_, err := sm.PermittedTriggers()
-	assert.EqualError(t, err, "status error")
+	want := "status error"
+	if _, err := sm.PermittedTriggers(); err == nil || err.Error() != want {
+		t.Errorf("PermittedTriggers() = %v, want %v", err, want)
+	}
 }
 
 func TestStateMachine_MustState_StatusError(t *testing.T) {
@@ -133,7 +165,7 @@ func TestStateMachine_MustState_StatusError(t *testing.T) {
 		return nil, errors.New("")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
-	assert.Panics(t, func() { sm.MustState() })
+	assertPanic(t, func() { sm.MustState() })
 }
 
 func TestStateMachine_Fire_StatusError(t *testing.T) {
@@ -141,7 +173,10 @@ func TestStateMachine_Fire_StatusError(t *testing.T) {
 		return nil, errors.New("status error")
 	}, func(_ context.Context, s State) error { return nil }, FiringImmediate)
 
-	assert.EqualError(t, sm.Fire(triggerX), "status error")
+	want := "status error"
+	if err := sm.Fire(triggerX); err == nil || err.Error() != want {
+		t.Errorf("Fire() = %v, want %v", err, want)
+	}
 }
 
 func TestStateMachine_Configure_PermittedTriggersIncludeSuperstatePermittedTriggers(t *testing.T) {
@@ -152,9 +187,27 @@ func TestStateMachine_Configure_PermittedTriggersIncludeSuperstatePermittedTrigg
 
 	permitted, _ := sm.PermittedTriggers(context.Background())
 
-	assert.Contains(t, permitted, triggerX)
-	assert.Contains(t, permitted, triggerY)
-	assert.NotContains(t, permitted, triggerZ)
+	var hasX, hasY, hasZ bool
+	for _, trigger := range permitted {
+		if trigger == triggerX {
+			hasX = true
+		}
+		if trigger == triggerY {
+			hasY = true
+		}
+		if trigger == triggerZ {
+			hasZ = true
+		}
+	}
+	if !hasX {
+		t.Errorf("expected permitted triggers to include %v", triggerX)
+	}
+	if !hasY {
+		t.Errorf("expected permitted triggers to include %v", triggerY)
+	}
+	if hasZ {
+		t.Errorf("expected permitted triggers to exclude %v", triggerZ)
+	}
 }
 
 func TestStateMachine_PermittedTriggers_PermittedTriggersAreDistinctValues(t *testing.T) {
@@ -164,8 +217,10 @@ func TestStateMachine_PermittedTriggers_PermittedTriggersAreDistinctValues(t *te
 
 	permitted, _ := sm.PermittedTriggers(context.Background())
 
-	assert.Len(t, permitted, 1)
-	assert.Equal(t, permitted[0], triggerX)
+	want := []any{triggerX}
+	if !reflect.DeepEqual(permitted, want) {
+		t.Errorf("PermittedTriggers() = %v, want %v", permitted, want)
+	}
 }
 
 func TestStateMachine_PermittedTriggers_AcceptedTriggersRespectGuards(t *testing.T) {
@@ -176,7 +231,9 @@ func TestStateMachine_PermittedTriggers_AcceptedTriggersRespectGuards(t *testing
 
 	permitted, _ := sm.PermittedTriggers(context.Background())
 
-	assert.Len(t, permitted, 0)
+	if got := len(permitted); got != 0 {
+		t.Errorf("PermittedTriggers() = %v, want %v", got, 0)
+	}
 }
 
 func TestStateMachine_PermittedTriggers_AcceptedTriggersRespectMultipleGuards(t *testing.T) {
@@ -189,7 +246,9 @@ func TestStateMachine_PermittedTriggers_AcceptedTriggersRespectMultipleGuards(t 
 
 	permitted, _ := sm.PermittedTriggers(context.Background())
 
-	assert.Len(t, permitted, 0)
+	if got := len(permitted); got != 0 {
+		t.Errorf("PermittedTriggers() = %v, want %v", got, 0)
+	}
 }
 
 func TestStateMachine_Fire_DiscriminatedByGuard_ChoosesPermitedTransition(t *testing.T) {
@@ -204,7 +263,9 @@ func TestStateMachine_Fire_DiscriminatedByGuard_ChoosesPermitedTransition(t *tes
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, stateC, sm.MustState())
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("MustState() = %v, want %v", got, stateC)
+	}
 }
 
 func TestStateMachine_Fire_SaveError(t *testing.T) {
@@ -215,8 +276,13 @@ func TestStateMachine_Fire_SaveError(t *testing.T) {
 	sm.Configure(stateB).
 		Permit(triggerX, stateA)
 
-	assert.EqualError(t, sm.Fire(triggerX), "status error")
-	assert.Equal(t, stateB, sm.MustState())
+	want := "status error"
+	if err := sm.Fire(triggerX); err == nil || err.Error() != want {
+		t.Errorf("Fire() = %v, want %v", err, want)
+	}
+	if sm.MustState() != stateB {
+		t.Errorf("MustState() = %v, want %v", sm.MustState(), stateB)
+	}
 }
 
 func TestStateMachine_Fire_TriggerIsIgnored_ActionsNotExecuted(t *testing.T) {
@@ -231,7 +297,9 @@ func TestStateMachine_Fire_TriggerIsIgnored_ActionsNotExecuted(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.False(t, fired)
+	if fired {
+		t.Error("actions were executed")
+	}
 }
 
 func TestStateMachine_Fire_SelfTransitionPermited_ActionsFire(t *testing.T) {
@@ -245,13 +313,14 @@ func TestStateMachine_Fire_SelfTransitionPermited_ActionsFire(t *testing.T) {
 		PermitReentry(triggerX)
 
 	sm.Fire(triggerX)
-
-	assert.True(t, fired)
+	if !fired {
+		t.Error("actions did not fire")
+	}
 }
 
 func TestStateMachine_Fire_ImplicitReentryIsDisallowed(t *testing.T) {
 	sm := NewStateMachine(stateB)
-	assert.Panics(t, func() {
+	assertPanic(t, func() {
 		sm.Configure(stateB).
 			Permit(triggerX, stateB)
 	})
@@ -259,7 +328,9 @@ func TestStateMachine_Fire_ImplicitReentryIsDisallowed(t *testing.T) {
 
 func TestStateMachine_Fire_ErrorForInvalidTransition(t *testing.T) {
 	sm := NewStateMachine(stateA)
-	assert.Error(t, sm.Fire(triggerX))
+	if err := sm.Fire(triggerX); err == nil {
+		t.Error("error expected")
+	}
 }
 
 func TestStateMachine_Fire_ErrorForInvalidTransitionMentionsGuardDescriptionIfPresent(t *testing.T) {
@@ -267,7 +338,9 @@ func TestStateMachine_Fire_ErrorForInvalidTransitionMentionsGuardDescriptionIfPr
 	sm.Configure(stateA).Permit(triggerX, stateB, func(_ context.Context, _ ...any) bool {
 		return false
 	})
-	assert.Error(t, sm.Fire(triggerX))
+	if err := sm.Fire(triggerX); err == nil {
+		t.Error("error expected")
+	}
 }
 
 func TestStateMachine_Fire_ParametersSuppliedToFireArePassedToEntryAction(t *testing.T) {
@@ -287,8 +360,12 @@ func TestStateMachine_Fire_ParametersSuppliedToFireArePassedToEntryAction(t *tes
 	suppliedArg1, suppliedArg2 := "something", 2
 	sm.Fire(triggerX, suppliedArg1, suppliedArg2)
 
-	assert.Equal(t, suppliedArg1, entryArg1)
-	assert.Equal(t, suppliedArg2, entryArg2)
+	if entryArg1 != suppliedArg1 {
+		t.Errorf("entryArg1 = %v, want %v", entryArg1, suppliedArg1)
+	}
+	if entryArg2 != suppliedArg2 {
+		t.Errorf("entryArg2 = %v, want %v", entryArg2, suppliedArg2)
+	}
 }
 
 func TestStateMachine_OnUnhandledTrigger_TheProvidedHandlerIsCalledWithStateAndTrigger(t *testing.T) {
@@ -305,8 +382,12 @@ func TestStateMachine_OnUnhandledTrigger_TheProvidedHandlerIsCalledWithStateAndT
 
 	sm.Fire(triggerZ)
 
-	assert.Equal(t, stateB, unhandledState)
-	assert.Equal(t, triggerZ, unhandledTrigger)
+	if stateB != unhandledState {
+		t.Errorf("unhandledState = %v, want %v", unhandledState, stateB)
+	}
+	if triggerZ != unhandledTrigger {
+		t.Errorf("unhandledTrigger = %v, want %v", unhandledTrigger, triggerZ)
+	}
 }
 
 func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(t *testing.T) {
@@ -314,7 +395,7 @@ func TestStateMachine_SetTriggerParameters_TriggerParametersAreImmutableOnceSet(
 
 	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
 
-	assert.Panics(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
+	assertPanic(t, func() { sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0)) })
 }
 
 func TestStateMachine_SetTriggerParameters_Interfaces(t *testing.T) {
@@ -322,7 +403,12 @@ func TestStateMachine_SetTriggerParameters_Interfaces(t *testing.T) {
 	sm.SetTriggerParameters(triggerX, reflect.TypeOf((*error)(nil)).Elem())
 
 	sm.Configure(stateB).Permit(triggerX, stateA)
-	assert.NotPanics(t, func() { sm.Fire(triggerX, errors.New("failed")) })
+	defer func() {
+		if r := recover(); r != nil {
+			t.Error("panic not expected")
+		}
+	}()
+	sm.Fire(triggerX, errors.New("failed"))
 }
 
 func TestStateMachine_SetTriggerParameters_Invalid(t *testing.T) {
@@ -331,9 +417,9 @@ func TestStateMachine_SetTriggerParameters_Invalid(t *testing.T) {
 	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
 	sm.Configure(stateB).Permit(triggerX, stateA)
 
-	assert.Panics(t, func() { sm.Fire(triggerX) })
-	assert.Panics(t, func() { sm.Fire(triggerX, "1", "2", "3") })
-	assert.Panics(t, func() { sm.Fire(triggerX, "1", "2") })
+	assertPanic(t, func() { sm.Fire(triggerX) })
+	assertPanic(t, func() { sm.Fire(triggerX, "1", "2", "3") })
+	assertPanic(t, func() { sm.Fire(triggerX, "1", "2") })
 }
 
 func TestStateMachine_OnTransitioning_EventFires(t *testing.T) {
@@ -346,10 +432,14 @@ func TestStateMachine_OnTransitioning_EventFires(t *testing.T) {
 	})
 	sm.Fire(triggerX)
 
-	assert.NotZero(t, transition)
-	assert.Equal(t, triggerX, transition.Trigger)
-	assert.Equal(t, stateB, transition.Source)
-	assert.Equal(t, stateA, transition.Destination)
+	want := Transition{
+		Source:      stateB,
+		Destination: stateA,
+		Trigger:     triggerX,
+	}
+	if !reflect.DeepEqual(transition, want) {
+		t.Errorf("transition = %v, want %v", transition, want)
+	}
 }
 
 func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
@@ -362,10 +452,14 @@ func TestStateMachine_OnTransitioned_EventFires(t *testing.T) {
 	})
 	sm.Fire(triggerX)
 
-	assert.NotZero(t, transition)
-	assert.Equal(t, triggerX, transition.Trigger)
-	assert.Equal(t, stateB, transition.Source)
-	assert.Equal(t, stateA, transition.Destination)
+	want := Transition{
+		Source:      stateB,
+		Trigger:     triggerX,
+		Destination: stateA,
+	}
+	if !reflect.DeepEqual(transition, want) {
+		t.Errorf("transition = %v, want %v", transition, want)
+	}
 }
 
 func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.T) {
@@ -394,28 +488,36 @@ func TestStateMachine_OnTransitioned_EventFiresBeforeTheOnEntryEvent(t *testing.
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
-	assert.Equal(t, triggerX, transition.Trigger)
-	assert.Equal(t, stateB, transition.Source)
-	assert.Equal(t, stateA, transition.Destination)
+	if !reflect.DeepEqual(actualOrdering, expectedOrdering) {
+		t.Errorf("actualOrdering = %v, want %v", actualOrdering, expectedOrdering)
+	}
+
+	want := Transition{
+		Source:      stateB,
+		Destination: stateA,
+		Trigger:     triggerX,
+	}
+	if !reflect.DeepEqual(transition, want) {
+		t.Errorf("transition = %v, want %v", transition, want)
+	}
 }
 
 func TestStateMachine_SubstateOf_DirectCyclicConfigurationDetected(t *testing.T) {
 	sm := NewStateMachine(stateA)
-	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateA) })
+	assertPanic(t, func() { sm.Configure(stateA).SubstateOf(stateA) })
 }
 
 func TestStateMachine_SubstateOf_NestedCyclicConfigurationDetected(t *testing.T) {
 	sm := NewStateMachine(stateA)
 	sm.Configure(stateB).SubstateOf(stateA)
-	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateB) })
+	assertPanic(t, func() { sm.Configure(stateA).SubstateOf(stateB) })
 }
 
 func TestStateMachine_SubstateOf_NestedTwoLevelsCyclicConfigurationDetected(t *testing.T) {
 	sm := NewStateMachine(stateA)
 	sm.Configure(stateB).SubstateOf(stateA)
 	sm.Configure(stateC).SubstateOf(stateB)
-	assert.Panics(t, func() { sm.Configure(stateA).SubstateOf(stateC) })
+	assertPanic(t, func() { sm.Configure(stateA).SubstateOf(stateC) })
 }
 
 func TestStateMachine_SubstateOf_DelayedNestedCyclicConfigurationDetected(t *testing.T) {
@@ -423,7 +525,7 @@ func TestStateMachine_SubstateOf_DelayedNestedCyclicConfigurationDetected(t *tes
 	sm.Configure(stateB).SubstateOf(stateA)
 	sm.Configure(stateC)
 	sm.Configure(stateA).SubstateOf(stateC)
-	assert.Panics(t, func() { sm.Configure(stateC).SubstateOf(stateB) })
+	assertPanic(t, func() { sm.Configure(stateC).SubstateOf(stateB) })
 }
 
 func TestStateMachine_Fire_IgnoreVsPermitReentry(t *testing.T) {
@@ -440,7 +542,9 @@ func TestStateMachine_Fire_IgnoreVsPermitReentry(t *testing.T) {
 	sm.Fire(triggerX)
 	sm.Fire(triggerY)
 
-	assert.Equal(t, calls, 1)
+	if calls != 1 {
+		t.Errorf("calls = %d, want %d", calls, 1)
+	}
 }
 
 func TestStateMachine_Fire_IgnoreVsPermitReentryFrom(t *testing.T) {
@@ -461,7 +565,9 @@ func TestStateMachine_Fire_IgnoreVsPermitReentryFrom(t *testing.T) {
 	sm.Fire(triggerX)
 	sm.Fire(triggerY)
 
-	assert.Equal(t, calls, 1)
+	if calls != 1 {
+		t.Errorf("calls = %d, want %d", calls, 1)
+	}
 }
 
 func TestStateMachine_Fire_IfSelfTransitionPermited_ActionsFire_InSubstate(t *testing.T) {
@@ -487,10 +593,18 @@ func TestStateMachine_Fire_IfSelfTransitionPermited_ActionsFire_InSubstate(t *te
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, stateB, sm.MustState())
-	assert.True(t, onEntryStateBfired)
-	assert.True(t, onExitStateBfired)
-	assert.True(t, onExitStateAfired)
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateB)
+	}
+	if !onEntryStateBfired {
+		t.Error("OnEntryStateB was not fired")
+	}
+	if !onExitStateBfired {
+		t.Error("OnExitStateB was not fired")
+	}
+	if !onExitStateAfired {
+		t.Error("OnExitStateA was not fired")
+	}
 }
 
 func TestStateMachine_Fire_TransitionWhenParameterizedGuardTrue(t *testing.T) {
@@ -503,7 +617,9 @@ func TestStateMachine_Fire_TransitionWhenParameterizedGuardTrue(t *testing.T) {
 
 	sm.Fire(triggerX, 2)
 
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_Fire_ErrorWhenParameterizedGuardFalse(t *testing.T) {
@@ -515,8 +631,9 @@ func TestStateMachine_Fire_ErrorWhenParameterizedGuardFalse(t *testing.T) {
 		})
 
 	sm.Fire(triggerX, 2)
-
-	assert.Error(t, sm.Fire(triggerX, 2))
+	if err := sm.Fire(triggerX, 2); err == nil {
+		t.Error("error expected")
+	}
 }
 
 func TestStateMachine_Fire_TransitionWhenBothParameterizedGuardClausesTrue(t *testing.T) {
@@ -531,7 +648,9 @@ func TestStateMachine_Fire_TransitionWhenBothParameterizedGuardClausesTrue(t *te
 
 	sm.Fire(triggerX, 2)
 
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_Fire_TransitionWhenGuardReturnsTrueOnTriggerWithMultipleParameters(t *testing.T) {
@@ -544,7 +663,9 @@ func TestStateMachine_Fire_TransitionWhenGuardReturnsTrueOnTriggerWithMultiplePa
 
 	sm.Fire(triggerX, "3", 2)
 
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_Fire_TransitionWhenPermitDyanmicIfHasMultipleExclusiveGuards(t *testing.T) {
@@ -566,7 +687,9 @@ func TestStateMachine_Fire_TransitionWhenPermitDyanmicIfHasMultipleExclusiveGuar
 
 	sm.Fire(triggerX, 3)
 
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_Fire_PermitDyanmic_Error(t *testing.T) {
@@ -576,8 +699,12 @@ func TestStateMachine_Fire_PermitDyanmic_Error(t *testing.T) {
 			return nil, errors.New("")
 		})
 
-	assert.Error(t, sm.Fire(triggerX), "")
-	assert.Equal(t, stateA, sm.MustState())
+	if err := sm.Fire(triggerX, ""); err == nil {
+		t.Error("error expected")
+	}
+	if got := sm.MustState(); got != stateA {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateA)
+	}
 }
 
 func TestStateMachine_Fire_PanicsWhenPermitDyanmicIfHasMultipleNonExclusiveGuards(t *testing.T) {
@@ -597,7 +724,7 @@ func TestStateMachine_Fire_PanicsWhenPermitDyanmicIfHasMultipleNonExclusiveGuard
 			return stateD, nil
 		}, func(_ context.Context, args ...any) bool { return args[0].(int) == 2 })
 
-	assert.Panics(t, func() { sm.Fire(triggerX, 2) })
+	assertPanic(t, func() { sm.Fire(triggerX, 2) })
 }
 
 func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithSuperStateTrue(t *testing.T) {
@@ -616,7 +743,9 @@ func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithS
 
 	sm.Fire(triggerX, 3)
 
-	assert.Equal(t, stateD, sm.MustState())
+	if got := sm.MustState(); got != stateD {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateD)
+	}
 }
 
 func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithSuperStateFalse(t *testing.T) {
@@ -635,7 +764,9 @@ func TestStateMachine_Fire_TransitionWhenPermitIfHasMultipleExclusiveGuardsWithS
 
 	sm.Fire(triggerX, 2)
 
-	assert.Equal(t, stateC, sm.MustState())
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("sm.MustState() = %v, want %v", got, stateC)
+	}
 }
 
 func TestStateMachine_Fire_TransitionToSuperstateDoesNotExitSuperstate(t *testing.T) {
@@ -661,9 +792,15 @@ func TestStateMachine_Fire_TransitionToSuperstateDoesNotExitSuperstate(t *testin
 
 	sm.Fire(triggerY)
 
-	assert.True(t, subExit)
-	assert.False(t, superEntry)
-	assert.False(t, superExit)
+	if !subExit {
+		t.Error("substate should exit")
+	}
+	if superEntry {
+		t.Error("superstate should not enter")
+	}
+	if superExit {
+		t.Error("superstate should not exit")
+	}
 }
 
 func TestStateMachine_Fire_OnExitFiresOnlyOnceReentrySubstate(t *testing.T) {
@@ -693,10 +830,18 @@ func TestStateMachine_Fire_OnExitFiresOnlyOnceReentrySubstate(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, 0, exitB)
-	assert.Equal(t, 0, entryB)
-	assert.Equal(t, 1, exitA)
-	assert.Equal(t, 1, entryA)
+	if entryB != 0 {
+		t.Error("entryB should be 0")
+	}
+	if exitB != 0 {
+		t.Error("exitB should be 0")
+	}
+	if entryA != 1 {
+		t.Error("entryA should be 1")
+	}
+	if exitA != 1 {
+		t.Error("exitA should be 1")
+	}
 }
 
 func TestStateMachine_Activate(t *testing.T) {
@@ -728,7 +873,9 @@ func TestStateMachine_Activate(t *testing.T) {
 
 	sm.Activate()
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expectedOrdering = %v, actualOrdering = %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_Activate_Error(t *testing.T) {
@@ -749,7 +896,9 @@ func TestStateMachine_Activate_Error(t *testing.T) {
 			return nil
 		})
 
-	assert.Error(t, sm.Activate())
+	if err := sm.Activate(); err == nil {
+		t.Error("error expected")
+	}
 }
 
 func TestStateMachine_Activate_Idempotent(t *testing.T) {
@@ -772,7 +921,9 @@ func TestStateMachine_Activate_Idempotent(t *testing.T) {
 
 	sm.Activate()
 
-	assert.Len(t, actualOrdering, 2)
+	if got := len(actualOrdering); got != 2 {
+		t.Errorf("expected 2, got %d", got)
+	}
 }
 
 func TestStateMachine_Deactivate(t *testing.T) {
@@ -805,7 +956,9 @@ func TestStateMachine_Deactivate(t *testing.T) {
 	sm.Activate()
 	sm.Deactivate()
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expectedOrdering = %v, actualOrdering = %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_Deactivate_NoActivated(t *testing.T) {
@@ -828,7 +981,10 @@ func TestStateMachine_Deactivate_NoActivated(t *testing.T) {
 
 	sm.Deactivate()
 
-	assert.Equal(t, actualOrdering, []string{"DeactivatedA", "DeactivatedC"})
+	want := []string{"DeactivatedA", "DeactivatedC"}
+	if !reflect.DeepEqual(want, actualOrdering) {
+		t.Errorf("want = %v, actualOrdering = %v", want, actualOrdering)
+	}
 }
 
 func TestStateMachine_Deactivate_Error(t *testing.T) {
@@ -850,7 +1006,9 @@ func TestStateMachine_Deactivate_Error(t *testing.T) {
 		})
 
 	sm.Activate()
-	assert.Error(t, sm.Deactivate())
+	if err := sm.Deactivate(); err == nil {
+		t.Error("error expected")
+	}
 }
 
 func TestStateMachine_Deactivate_Idempotent(t *testing.T) {
@@ -876,7 +1034,9 @@ func TestStateMachine_Deactivate_Idempotent(t *testing.T) {
 	actualOrdering = make([]string, 0)
 	sm.Activate()
 
-	assert.Empty(t, actualOrdering)
+	if got := len(actualOrdering); got != 0 {
+		t.Errorf("expected 0, got %d", got)
+	}
 }
 
 func TestStateMachine_Activate_Transitioning(t *testing.T) {
@@ -935,7 +1095,9 @@ func TestStateMachine_Activate_Transitioning(t *testing.T) {
 	sm.Fire(triggerX)
 	sm.Fire(triggerY)
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expectedOrdering = %v, actualOrdering = %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_Fire_ImmediateEntryAProcessedBeforeEnterB(t *testing.T) {
@@ -969,7 +1131,9 @@ func TestStateMachine_Fire_ImmediateEntryAProcessedBeforeEnterB(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expectedOrdering = %v, actualOrdering = %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
@@ -1003,7 +1167,9 @@ func TestStateMachine_Fire_QueuedEntryAProcessedBeforeEnterB(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expectedOrdering = %v, actualOrdering = %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_Fire_QueuedEntryAsyncFire(t *testing.T) {
@@ -1070,7 +1236,9 @@ func TestStateMachine_Fire_Race(t *testing.T) {
 		wg.Done()
 	}()
 	wg.Wait()
-	assert.Len(t, actualOrdering, 4)
+	if got := len(actualOrdering); got != 4 {
+		t.Errorf("expected 4, got %d", got)
+	}
 }
 
 func TestStateMachine_Fire_Queued_ErrorExit(t *testing.T) {
@@ -1091,7 +1259,9 @@ func TestStateMachine_Fire_Queued_ErrorExit(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.Error(t, sm.Fire(triggerX))
+	if err := sm.Fire(triggerX); err == nil {
+		t.Error("expected error")
+	}
 }
 
 func TestStateMachine_Fire_Queued_ErrorEnter(t *testing.T) {
@@ -1112,7 +1282,9 @@ func TestStateMachine_Fire_Queued_ErrorEnter(t *testing.T) {
 
 	sm.Fire(triggerX)
 
-	assert.Error(t, sm.Fire(triggerX))
+	if err := sm.Fire(triggerX); err == nil {
+		t.Error("expected error")
+	}
 }
 
 func TestStateMachine_InternalTransition_StayInSameStateOneState(t *testing.T) {
@@ -1123,7 +1295,9 @@ func TestStateMachine_InternalTransition_StayInSameStateOneState(t *testing.T) {
 		})
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateA, sm.MustState())
+	if got := sm.MustState(); got != stateA {
+		t.Errorf("expected %v, got %v", stateA, got)
+	}
 }
 
 func TestStateMachine_InternalTransition_HandledOnlyOnceInSuper(t *testing.T) {
@@ -1143,7 +1317,9 @@ func TestStateMachine_InternalTransition_HandledOnlyOnceInSuper(t *testing.T) {
 		})
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateA, handledIn)
+	if stateA != handledIn {
+		t.Errorf("expected %v, got %v", stateA, handledIn)
+	}
 }
 
 func TestStateMachine_InternalTransition_HandledOnlyOnceInSub(t *testing.T) {
@@ -1163,7 +1339,9 @@ func TestStateMachine_InternalTransition_HandledOnlyOnceInSub(t *testing.T) {
 		})
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateB, handledIn)
+	if stateB != handledIn {
+		t.Errorf("expected %v, got %v", stateB, handledIn)
+	}
 }
 
 func TestStateMachine_InitialTransition_EntersSubState(t *testing.T) {
@@ -1179,7 +1357,9 @@ func TestStateMachine_InitialTransition_EntersSubState(t *testing.T) {
 		SubstateOf(stateB)
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateC, sm.MustState())
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("MustState() = %v, want %v", got, stateC)
+	}
 }
 
 func TestStateMachine_InitialTransition_EntersSubStateofSubstate(t *testing.T) {
@@ -1199,7 +1379,9 @@ func TestStateMachine_InitialTransition_EntersSubStateofSubstate(t *testing.T) {
 		SubstateOf(stateC)
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateD, sm.MustState())
+	if got := sm.MustState(); got != stateD {
+		t.Errorf("MustState() = %v, want %v", got, stateD)
+	}
 }
 
 func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
@@ -1237,10 +1419,13 @@ func TestStateMachine_InitialTransition_Ordering(t *testing.T) {
 	})
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateC, sm.MustState())
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("MustState() = %v, want %v", got, stateC)
+	}
 
-	assert.Equal(t, len(expectedOrdering), len(actualOrdering))
-	assert.Equal(t, expectedOrdering, actualOrdering)
+	if !reflect.DeepEqual(expectedOrdering, actualOrdering) {
+		t.Errorf("expected %v, got %v", expectedOrdering, actualOrdering)
+	}
 }
 
 func TestStateMachine_InitialTransition_DoesNotEnterSubStateofSubstate(t *testing.T) {
@@ -1258,12 +1443,14 @@ func TestStateMachine_InitialTransition_DoesNotEnterSubStateofSubstate(t *testin
 		SubstateOf(stateC)
 
 	sm.Fire(triggerX)
-	assert.Equal(t, stateB, sm.MustState())
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("MustState() = %v, want %v", got, stateB)
+	}
 }
 
 func TestStateMachine_InitialTransition_DoNotAllowTransitionToSelf(t *testing.T) {
 	sm := NewStateMachine(stateA)
-	assert.Panics(t, func() {
+	assertPanic(t, func() {
 		sm.Configure(stateA).
 			InitialTransition(stateA)
 	})
@@ -1275,7 +1462,9 @@ func TestStateMachine_InitialTransition_WithMultipleSubStates(t *testing.T) {
 	sm.Configure(stateB).InitialTransition(stateC)
 	sm.Configure(stateC).SubstateOf(stateB)
 	sm.Configure(stateD).SubstateOf(stateB)
-	assert.NoError(t, sm.Fire(triggerX))
+	if err := sm.Fire(triggerX); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestStateMachine_InitialTransition_DoNotAllowTransitionToAnotherSuperstate(t *testing.T) {
@@ -1287,7 +1476,7 @@ func TestStateMachine_InitialTransition_DoNotAllowTransitionToAnotherSuperstate(
 	sm.Configure(stateB).
 		InitialTransition(stateA)
 
-	assert.Panics(t, func() { sm.Fire(triggerX) })
+	assertPanic(t, func() { sm.Fire(triggerX) })
 }
 
 func TestStateMachine_InitialTransition_DoNotAllowMoreThanOneInitialTransition(t *testing.T) {
@@ -1299,7 +1488,7 @@ func TestStateMachine_InitialTransition_DoNotAllowMoreThanOneInitialTransition(t
 	sm.Configure(stateB).
 		InitialTransition(stateC)
 
-	assert.Panics(t, func() { sm.Configure(stateB).InitialTransition(stateA) })
+	assertPanic(t, func() { sm.Configure(stateB).InitialTransition(stateA) })
 }
 
 func TestStateMachine_String(t *testing.T) {
@@ -1332,12 +1521,17 @@ func TestStateMachine_Firing_Queued(t *testing.T) {
 
 	sm.Configure(stateB).
 		OnEntry(func(ctx context.Context, i ...any) error {
-			assert.True(t, sm.Firing())
+			if !sm.Firing() {
+				t.Error("expected firing to be true")
+			}
 			return nil
 		})
-
-	assert.NoError(t, sm.Fire(triggerX))
-	assert.False(t, sm.Firing())
+	if err := sm.Fire(triggerX); err != nil {
+		t.Error(err)
+	}
+	if sm.Firing() {
+		t.Error("expected firing to be false")
+	}
 }
 
 func TestStateMachine_Firing_Immediate(t *testing.T) {
@@ -1348,12 +1542,17 @@ func TestStateMachine_Firing_Immediate(t *testing.T) {
 
 	sm.Configure(stateB).
 		OnEntry(func(ctx context.Context, i ...any) error {
-			assert.True(t, sm.Firing())
+			if !sm.Firing() {
+				t.Error("expected firing to be true")
+			}
 			return nil
 		})
-
-	assert.NoError(t, sm.Fire(triggerX))
-	assert.False(t, sm.Firing())
+	if err := sm.Fire(triggerX); err != nil {
+		t.Error(err)
+	}
+	if sm.Firing() {
+		t.Error("expected firing to be false")
+	}
 }
 
 func TestStateMachine_Firing_Concurrent(t *testing.T) {
@@ -1362,7 +1561,9 @@ func TestStateMachine_Firing_Concurrent(t *testing.T) {
 	sm.Configure(stateA).
 		PermitReentry(triggerX).
 		OnEntry(func(ctx context.Context, i ...any) error {
-			assert.True(t, sm.Firing())
+			if !sm.Firing() {
+				t.Error("expected firing to be true")
+			}
 			return nil
 		})
 
@@ -1370,15 +1571,29 @@ func TestStateMachine_Firing_Concurrent(t *testing.T) {
 	wg.Add(1000)
 	for i := 0; i < 1000; i++ {
 		go func() {
-			assert.NoError(t, sm.Fire(triggerX))
+			if err := sm.Fire(triggerX); err != nil {
+				t.Error(err)
+			}
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	assert.False(t, sm.Firing())
+	if sm.Firing() {
+		t.Error("expected firing to be false")
+	}
 }
 
 func TestGetTransition_ContextEmpty(t *testing.T) {
 	// It should not panic
 	GetTransition(context.Background())
+}
+
+func assertPanic(t *testing.T, f func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("did not panic")
+		}
+	}()
+	f()
 }

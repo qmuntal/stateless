@@ -37,7 +37,7 @@ func Example() {
 		Permit(triggerCallDialed, stateRinging)
 
 	phoneCall.Configure(stateRinging).
-		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
 			onDialed(args[0].(string))
 			return nil
 		}).
@@ -45,19 +45,19 @@ func Example() {
 
 	phoneCall.Configure(stateConnected).
 		OnEntry(startCallTimer).
-		OnExit(func(_ context.Context, _ ...interface{}) error {
+		OnExit(func(_ context.Context, _ ...any) error {
 			stopCallTimer()
 			return nil
 		}).
-		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...any) error {
 			onMute()
 			return nil
 		}).
-		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...any) error {
 			onUnmute()
 			return nil
 		}).
-		InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
+		InternalTransition(triggerSetVolume, func(_ context.Context, args ...any) error {
 			onSetVolume(args[0].(int))
 			return nil
 		}).
@@ -111,7 +111,7 @@ func onDialed(callee string) {
 	fmt.Printf("[Phone Call] placed for : [%s]\n", callee)
 }
 
-func startCallTimer(_ context.Context, _ ...interface{}) error {
+func startCallTimer(_ context.Context, _ ...any) error {
 	fmt.Println("[Timer:] Call started at 11:00am")
 	return nil
 }

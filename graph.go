@@ -180,7 +180,7 @@ func (g *graph) formatOneLine(fromNodeName, toNodeName, label string) string {
 	return sb.String()
 }
 
-func clusterStr(state interface{}, quote, init bool) string {
+func clusterStr(state any, quote, init bool) string {
 	s := fmt.Sprint(state)
 	if init {
 		s += "-init"
@@ -188,7 +188,7 @@ func clusterStr(state interface{}, quote, init bool) string {
 	return esc("cluster_"+s, quote)
 }
 
-func str(v interface{}, quote bool) string {
+func str(v any, quote bool) string {
 	return esc(fmt.Sprint(v), quote)
 }
 

@@ -3,9 +3,8 @@ package stateless
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func createSuperSubstatePair() (*stateRepresentation, *stateRepresentation) {
@@ -18,62 +17,84 @@ func createSuperSubstatePair() (*stateRepresentation, *stateRepresentation) {
 
 func Test_stateRepresentation_Includes_SameState(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.True(t, sr.IncludeState(stateB))
+	if !sr.IncludeState(stateB) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_Includes_Substate(t *testing.T) {
 	sr := newstateRepresentation(stateB)
 	sr.Substates = append(sr.Substates, newstateRepresentation(stateC))
-	assert.True(t, sr.IncludeState(stateC))
+	if !sr.IncludeState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_Includes_UnrelatedState(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.False(t, sr.IncludeState(stateC))
+	if sr.IncludeState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_Includes_Superstate(t *testing.T) {
 	sr := newstateRepresentation(stateB)
 	sr.Superstate = newstateRepresentation(stateC)
-	assert.False(t, sr.IncludeState(stateC))
+	if sr.IncludeState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_IsIncludedInState_SameState(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.True(t, sr.IsIncludedInState(stateB))
+	if !sr.IsIncludedInState(stateB) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_IsIncludedInState_Substate(t *testing.T) {
 	sr := newstateRepresentation(stateB)
 	sr.Substates = append(sr.Substates, newstateRepresentation(stateC))
-	assert.False(t, sr.IsIncludedInState(stateC))
+	if sr.IsIncludedInState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_IsIncludedInState_UnrelatedState(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.False(t, sr.IsIncludedInState(stateC))
+	if sr.IsIncludedInState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_IsIncludedInState_Superstate(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.False(t, sr.IsIncludedInState(stateC))
+	if sr.IsIncludedInState(stateC) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_CanHandle_TransitionExists_TriggerCannotBeFired(t *testing.T) {
 	sr := newstateRepresentation(stateB)
-	assert.False(t, sr.CanHandle(context.Background(), triggerX))
+	if sr.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_CanHandle_TransitionDoesNotExist_TriggerCanBeFired(t *testing.T) {
 	sr := newstateRepresentation(stateB)
 	sr.AddTriggerBehaviour(&ignoredTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{Trigger: triggerX}})
-	assert.True(t, sr.CanHandle(context.Background(), triggerX))
+	if !sr.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_CanHandle_TransitionExistsInSupersate_TriggerCanBeFired(t *testing.T) {
 	super, sub := createSuperSubstatePair()
 	super.AddTriggerBehaviour(&ignoredTriggerBehaviour{baseTriggerBehaviour: baseTriggerBehaviour{Trigger: triggerX}})
-	assert.True(t, sub.CanHandle(context.Background(), triggerX))
+	if !sub.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_CanHandle_TransitionUnmetGuardConditions_TriggerCannotBeFired(t *testing.T) {
@@ -86,7 +107,9 @@ func Test_stateRepresentation_CanHandle_TransitionUnmetGuardConditions_TriggerCa
 			return false
 		}),
 	}, Destination: stateC})
-	assert.False(t, sr.CanHandle(context.Background(), triggerX))
+	if sr.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_CanHandle_TransitionGuardConditionsMet_TriggerCanBeFired(t *testing.T) {
@@ -99,7 +122,9 @@ func Test_stateRepresentation_CanHandle_TransitionGuardConditionsMet_TriggerCanB
 			return true
 		}),
 	}, Destination: stateC})
-	assert.True(t, sr.CanHandle(context.Background(), triggerX))
+	if !sr.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuardConditions_FireNotPossible(t *testing.T) {
@@ -113,11 +138,18 @@ func Test_stateRepresentation_FindHandler_TransitionExistAndSuperstateUnmetGuard
 		}),
 	}, Destination: stateC})
 	handler, ok := sub.FindHandler(context.Background(), triggerX)
-	assert.False(t, ok)
-	assert.NotNil(t, handler)
-	assert.False(t, sub.CanHandle(context.Background(), triggerX))
-	assert.False(t, super.CanHandle(context.Background(), triggerX))
-	assert.False(t, handler.Handler.GuardConditionMet(context.Background()))
+	if ok {
+		t.Fail()
+	}
+	if sub.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
+	if super.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
+	if handler.Handler.GuardConditionMet(context.Background()) {
+		t.Fail()
+	}
 }
 
 func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardConditions_CanBeFired(t *testing.T) {
@@ -131,12 +163,21 @@ func Test_stateRepresentation_FindHandler_TransitionExistSuperstateMetGuardCondi
 		}),
 	}, Destination: stateC})
 	handler, ok := sub.FindHandler(context.Background(), triggerX)
-	assert.True(t, ok)
-	assert.NotNil(t, handler)
-	assert.True(t, sub.CanHandle(context.Background(), triggerX))
-	assert.True(t, super.CanHandle(context.Background(), triggerX))
-	assert.True(t, handler.Handler.GuardConditionMet(context.Background()))
-	assert.Empty(t, handler.UnmetGuardConditions)
+	if !ok {
+		t.Fail()
+	}
+	if !sub.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
+	if !super.CanHandle(context.Background(), triggerX) {
+		t.Fail()
+	}
+	if !handler.Handler.GuardConditionMet(context.Background()) {
+		t.Error("expected guard condition to be met")
+	}
+	if len(handler.UnmetGuardConditions) != 0 {
+		t.Error("expected no unmet guard conditions")
+	}
 }
 
 func Test_stateRepresentation_Enter_EnteringActionsExecuted(t *testing.T) {
@@ -149,9 +190,12 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted(t *testing.T) {
 			return nil
 		},
 	})
-	err := sr.Enter(context.Background(), transition)
-	assert.Equal(t, transition, actualTransition)
-	assert.NoError(t, err)
+	if err := sr.Enter(context.Background(), transition); err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(transition, actualTransition) {
+		t.Error("expected transition to be passed to action")
+	}
 }
 
 func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) {
@@ -163,9 +207,12 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) 
 			return errors.New("")
 		},
 	})
-	err := sr.Enter(context.Background(), transition)
-	assert.NotEqual(t, transition, actualTransition)
-	assert.Error(t, err)
+	if err := sr.Enter(context.Background(), transition); err == nil {
+		t.Error("error expected")
+	}
+	if reflect.DeepEqual(transition, actualTransition) {
+		t.Error("transition should not be passed to action")
+	}
 }
 
 func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
@@ -179,7 +226,9 @@ func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
 		},
 	})
 	sr.Enter(context.Background(), transition)
-	assert.Zero(t, actualTransition)
+	if actualTransition != (Transition{}) {
+		t.Error("expected transition to not be passed to action")
+	}
 }
 
 func Test_stateRepresentation_Enter_FromSubToSuperstate_SubstateEntryActionsExecuted(t *testing.T) {
@@ -193,7 +242,9 @@ func Test_stateRepresentation_Enter_FromSubToSuperstate_SubstateEntryActionsExec
 	})
 	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
-	assert.True(t, executed)
+	if !executed {
+		t.Error("expected substate entry actions to be executed")
+	}
 }
 
 func Test_stateRepresentation_Enter_SuperFromSubstate_SuperEntryActionsNotExecuted(t *testing.T) {
@@ -207,7 +258,9 @@ func Test_stateRepresentation_Enter_SuperFromSubstate_SuperEntryActionsNotExecut
 	})
 	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
-	assert.False(t, executed)
+	if executed {
+		t.Error("expected superstate entry actions not to be executed")
+	}
 }
 
 func Test_stateRepresentation_Enter_Substate_SuperEntryActionsExecuted(t *testing.T) {
@@ -221,7 +274,9 @@ func Test_stateRepresentation_Enter_Substate_SuperEntryActionsExecuted(t *testin
 	})
 	transition := Transition{Source: stateC, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
-	assert.True(t, executed)
+	if !executed {
+		t.Error("expected superstate entry actions to be executed")
+	}
 }
 
 func Test_stateRepresentation_Enter_ActionsExecuteInOrder(t *testing.T) {
@@ -241,9 +296,15 @@ func Test_stateRepresentation_Enter_ActionsExecuteInOrder(t *testing.T) {
 	})
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
 	sr.Enter(context.Background(), transition)
-	assert.Equal(t, 2, len(actual))
-	assert.Equal(t, 0, actual[0])
-	assert.Equal(t, 1, actual[1])
+	if got := len(actual); got != 2 {
+		t.Fatalf("expected 2 actions to be executed, got %d", got)
+	}
+	if got := actual[0]; got != 0 {
+		t.Errorf("expected action 0 to be executed first, got %d", got)
+	}
+	if got := actual[1]; got != 1 {
+		t.Errorf("expected action 1 to be executed second, got %d", got)
+	}
 }
 
 func Test_stateRepresentation_Enter_Substate_SuperstateEntryActionsExecuteBeforeSubstate(t *testing.T) {
@@ -265,7 +326,9 @@ func Test_stateRepresentation_Enter_Substate_SuperstateEntryActionsExecuteBefore
 	})
 	transition := Transition{Source: stateC, Destination: sub.State, Trigger: triggerX}
 	sub.Enter(context.Background(), transition)
-	assert.True(t, superOrder < subOrder)
+	if superOrder >= subOrder {
+		t.Error("expected superstate entry actions to execute before substate entry actions")
+	}
 }
 
 func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
@@ -279,7 +342,9 @@ func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
 		},
 	})
 	sr.Exit(context.Background(), transition)
-	assert.Zero(t, actualTransition)
+	if actualTransition != (Transition{}) {
+		t.Error("expected transition to not be passed to action")
+	}
 }
 
 func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
@@ -292,9 +357,12 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 			return nil
 		},
 	})
-	err := sr.Exit(context.Background(), transition)
-	assert.Equal(t, transition, actualTransition)
-	assert.NoError(t, err)
+	if err := sr.Exit(context.Background(), transition); err != nil {
+		t.Error(err)
+	}
+	if actualTransition != transition {
+		t.Error("expected transition to be passed to leaving actions")
+	}
 }
 
 func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
@@ -306,9 +374,12 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
 			return errors.New("")
 		},
 	})
-	err := sr.Exit(context.Background(), transition)
-	assert.NotEqual(t, transition, actualTransition)
-	assert.Error(t, err)
+	if err := sr.Exit(context.Background(), transition); err == nil {
+		t.Error("expected error")
+	}
+	if actualTransition == transition {
+		t.Error("expected transition to not be passed to leaving actions")
+	}
 }
 
 func Test_stateRepresentation_Exit_FromSubToSuperstate_SubstateExitActionsExecuted(t *testing.T) {
@@ -322,7 +393,9 @@ func Test_stateRepresentation_Exit_FromSubToSuperstate_SubstateExitActionsExecut
 	})
 	transition := Transition{Source: sub.State, Destination: super.State, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
-	assert.True(t, executed)
+	if !executed {
+		t.Error("expected substate exit actions to be executed")
+	}
 }
 
 func Test_stateRepresentation_Exit_FromSubToOther_SuperstateExitActionsExecuted(t *testing.T) {
@@ -339,7 +412,9 @@ func Test_stateRepresentation_Exit_FromSubToOther_SuperstateExitActionsExecuted(
 	})
 	transition := Transition{Source: sub.State, Destination: stateD, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
-	assert.True(t, executed)
+	if !executed {
+		t.Error("expected superstate exit actions to be executed")
+	}
 }
 
 func Test_stateRepresentation_Exit_FromSuperToSubstate_SuperExitActionsNotExecuted(t *testing.T) {
@@ -353,7 +428,9 @@ func Test_stateRepresentation_Exit_FromSuperToSubstate_SuperExitActionsNotExecut
 	})
 	transition := Transition{Source: super.State, Destination: sub.State, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
-	assert.False(t, executed)
+	if executed {
+		t.Error("expected superstate exit actions to not be executed")
+	}
 }
 
 func Test_stateRepresentation_Exit_Substate_SuperExitActionsExecuted(t *testing.T) {
@@ -367,7 +444,9 @@ func Test_stateRepresentation_Exit_Substate_SuperExitActionsExecuted(t *testing.
 	})
 	transition := Transition{Source: sub.State, Destination: stateC, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
-	assert.True(t, executed)
+	if !executed {
+		t.Error("expected superstate exit actions to be executed")
+	}
 }
 
 func Test_stateRepresentation_Exit_ActionsExecuteInOrder(t *testing.T) {
@@ -387,9 +466,15 @@ func Test_stateRepresentation_Exit_ActionsExecuteInOrder(t *testing.T) {
 	})
 	transition := Transition{Source: stateB, Destination: stateC, Trigger: triggerX}
 	sr.Exit(context.Background(), transition)
-	assert.Equal(t, 2, len(actual))
-	assert.Equal(t, 0, actual[0])
-	assert.Equal(t, 1, actual[1])
+	if got := len(actual); got != 2 {
+		t.Fatalf("expected 2 actions to be executed, got %d", got)
+	}
+	if got := actual[0]; got != 0 {
+		t.Errorf("expected action 0 to be executed first, got %d", got)
+	}
+	if got := actual[1]; got != 1 {
+		t.Errorf("expected action 1 to be executed second, got %d", got)
+	}
 }
 
 func Test_stateRepresentation_Exit_Substate_SubstateEntryActionsExecuteBeforeSuperstate(t *testing.T) {
@@ -411,5 +496,7 @@ func Test_stateRepresentation_Exit_Substate_SubstateEntryActionsExecuteBeforeSup
 	})
 	transition := Transition{Source: sub.State, Destination: stateC, Trigger: triggerX}
 	sub.Exit(context.Background(), transition)
-	assert.True(t, subOrder < superOrder)
+	if subOrder >= superOrder {
+		t.Error("expected substate exit actions to execute before superstate")
+	}
 }

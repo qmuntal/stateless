@@ -19,18 +19,18 @@ phoneCall := stateless.NewStateMachine(stateOffHook)
 phoneCall.Configure(stateOffHook).Permit(triggerCallDialed, stateRinging)
 
 phoneCall.Configure(stateRinging).
-  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
     onDialed(args[0].(string))
     return nil
   }).
   Permit(triggerCallConnected, stateConnected)
 
 phoneCall.Configure(stateConnected).
-  OnEntry(func(_ context.Context, _ ...interface{}) error {
+  OnEntry(func(_ context.Context, _ ...any) error {
     startCallTimer()
     return nil
   }).
-  OnExit(func(_ context.Context, _ ...interface{}) error {
+  OnExit(func(_ context.Context, _ ...any) error {
     stopCallTimer()
     return nil
   }).
@@ -126,10 +126,10 @@ The state machine will choose between multiple transitions based on guard clause
 
 ```go
 phoneCall.Configure(stateOffHook).
-  Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...interface{}) bool {
+  Permit(triggerCallDialled, stateRinging, func(_ context.Context, _ ...any) bool {
     return IsValidNumber()
   }).
-  Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...interface{}) bool {
+  Permit(triggerCallDialled, stateBeeping, func(_ context.Context, _ ...any) bool {
     return !IsValidNumber()
   })
 ```
@@ -146,7 +146,7 @@ Strongly-typed parameters can be assigned to triggers:
 stateMachine.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
 stateMachine.Configure(stateRinging).
-  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+  OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
     fmt.Println(args[0].(string))
     return nil
   })
@@ -174,7 +174,7 @@ Alternatively, a state can be marked reentrant so its entry and exit events will
 ```go
 stateMachine.Configure(stateAssigned).
   PermitReentry(triggerAssigned).
-  OnEntry(func(_ context.Context, _ ...interface{}) error {
+  OnEntry(func(_ context.Context, _ ...any) error {
     startCallTimer()
     return nil
   })

@@ -20,13 +20,13 @@ func GetTransition(ctx context.Context) Transition {
 
 // ActionFunc describes a generic action function.
 // The context will always contain Transition information.
-type ActionFunc = func(ctx context.Context, args ...interface{}) error
+type ActionFunc = func(ctx context.Context, args ...any) error
 
 // GuardFunc defines a generic guard function.
-type GuardFunc = func(ctx context.Context, args ...interface{}) bool
+type GuardFunc = func(ctx context.Context, args ...any) bool
 
 // DestinationSelectorFunc defines a functions that is called to select a dynamic destination.
-type DestinationSelectorFunc = func(ctx context.Context, args ...interface{}) (State, error)
+type DestinationSelectorFunc = func(ctx context.Context, args ...any) (State, error)
 
 // StateConfiguration is the configuration for a single state value.
 type StateConfiguration struct {

@@ -11,7 +11,7 @@ type actionBehaviour struct {
 	Trigger     *Trigger
 }
 
-func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) (err error) {
+func (a actionBehaviour) Execute(ctx context.Context, transition Transition, args ...any) (err error) {
 	if a.Trigger == nil || *a.Trigger == transition.Trigger {
 		ctx = withTransition(ctx, transition)
 		err = a.Action(ctx, args...)
@@ -57,12 +57,12 @@ func (sr *stateRepresentation) state() State {
 	return sr.State
 }
 
-func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...interface{}) (ok bool) {
+func (sr *stateRepresentation) CanHandle(ctx context.Context, trigger Trigger, args ...any) (ok bool) {
 	_, ok = sr.FindHandler(ctx, trigger, args...)
 	return
 }
 
-func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger, args ...interface{}) (handler triggerBehaviourResult, ok bool) {
+func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger, args ...any) (handler triggerBehaviourResult, ok bool) {
 	handler, ok = sr.findHandler(ctx, trigger, args...)
 	if ok || sr.Superstate == nil {
 		return
@@ -71,7 +71,7 @@ func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger,
 	return
 }
 
-func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, args ...interface{}) (result triggerBehaviourResult, ok bool) {
+func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, args ...any) (result triggerBehaviourResult, ok bool) {
 	var (
 		possibleBehaviours []triggerBehaviour
 	)
@@ -124,7 +124,7 @@ func (sr *stateRepresentation) Deactivate(ctx context.Context) error {
 	return nil
 }
 
-func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...interface{}) error {
+func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition, args ...any) error {
 	if transition.IsReentry() {
 		return sr.executeEntryActions(ctx, transition, args...)
 	}
@@ -139,7 +139,7 @@ func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition,
 	return sr.executeEntryActions(ctx, transition, args...)
 }
 
-func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition, args ...interface{}) (err error) {
+func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition, args ...any) (err error) {
 	isReentry := transition.IsReentry()
 	if !isReentry && sr.IncludeState(transition.Destination) {
 		return
@@ -162,7 +162,7 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition, 
 	return
 }
 
-func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Transition, args ...interface{}) error {
+func (sr *stateRepresentation) InternalAction(ctx context.Context, transition Transition, args ...any) error {
 	var internalTransition *internalTriggerBehaviour
 	var stateRep *stateRepresentation = sr
 	for stateRep != nil {
@@ -209,7 +209,7 @@ func (sr *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 
 }
 
-func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...interface{}) (triggers []Trigger) {
+func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...any) (triggers []Trigger) {
 	for key, value := range sr.TriggerBehaviours {
 		for _, tb := range value {
 			if len(tb.UnmetGuardConditions(ctx, args...)) == 0 {
@@ -254,7 +254,7 @@ func (sr *stateRepresentation) executeDeactivationActions(ctx context.Context) e
 	return nil
 }
 
-func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transition Transition, args ...interface{}) error {
+func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transition Transition, args ...any) error {
 	for _, a := range sr.EntryActions {
 		if err := a.Execute(ctx, transition, args...); err != nil {
 			return err
@@ -263,7 +263,7 @@ func (sr *stateRepresentation) executeEntryActions(ctx context.Context, transiti
 	return nil
 }
 
-func (sr *stateRepresentation) executeExitActions(ctx context.Context, transition Transition, args ...interface{}) error {
+func (sr *stateRepresentation) executeExitActions(ctx context.Context, transition Transition, args ...any) error {
 	for _, a := range sr.ExitActions {
 		if err := a.Execute(ctx, transition, args...); err != nil {
 			return err

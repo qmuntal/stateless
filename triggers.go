@@ -12,7 +12,7 @@ type invocationInfo struct {
 	Method string
 }
 
-func newinvocationInfo(method interface{}) invocationInfo {
+func newinvocationInfo(method any) invocationInfo {
 	funcName := runtime.FuncForPC(reflect.ValueOf(method).Pointer()).Name()
 	nameParts := strings.Split(funcName, ".")
 	var name string
@@ -52,7 +52,7 @@ func newtransitionGuard(guards ...GuardFunc) transitionGuard {
 }
 
 // GuardConditionsMet is true if all of the guard functions return true.
-func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
+func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...any) bool {
 	for _, guard := range t.Guards {
 		if !guard.Guard(ctx, args...) {
 			return false
@@ -61,7 +61,7 @@ func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...interfac
 	return true
 }
 
-func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
+func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...any) []string {
 	unmet := make([]string, 0, len(t.Guards))
 	for _, guard := range t.Guards {
 		if !guard.Guard(ctx, args...) {
@@ -72,8 +72,8 @@ func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...inter
 }
 
 type triggerBehaviour interface {
-	GuardConditionMet(context.Context, ...interface{}) bool
-	UnmetGuardConditions(context.Context, ...interface{}) []string
+	GuardConditionMet(context.Context, ...any) bool
+	UnmetGuardConditions(context.Context, ...any) []string
 	GetTrigger() Trigger
 }
 
@@ -86,11 +86,11 @@ func (t *baseTriggerBehaviour) GetTrigger() Trigger {
 	return t.Trigger
 }
 
-func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...interface{}) bool {
+func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...any) bool {
 	return t.Guard.GuardConditionMet(ctx, args...)
 }
 
-func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...interface{}) []string {
+func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...any) []string {
 	return t.Guard.UnmetGuardConditions(ctx, args...)
 }
 
@@ -110,7 +110,7 @@ type transitioningTriggerBehaviour struct {
 
 type dynamicTriggerBehaviour struct {
 	baseTriggerBehaviour
-	Destination func(context.Context, ...interface{}) (State, error)
+	Destination func(context.Context, ...any) (State, error)
 }
 
 type internalTriggerBehaviour struct {
@@ -118,7 +118,7 @@ type internalTriggerBehaviour struct {
 	Action ActionFunc
 }
 
-func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...interface{}) error {
+func (t *internalTriggerBehaviour) Execute(ctx context.Context, transition Transition, args ...any) error {
 	ctx = withTransition(ctx, transition)
 	return t.Action(ctx, args...)
 }
@@ -134,7 +134,7 @@ type triggerWithParameters struct {
 	ArgumentTypes []reflect.Type
 }
 
-func (t triggerWithParameters) validateParameters(args ...interface{}) {
+func (t triggerWithParameters) validateParameters(args ...any) {
 	if len(args) != len(t.ArgumentTypes) {
 		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}

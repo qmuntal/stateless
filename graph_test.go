@@ -45,19 +45,19 @@ func withGuards() *stateless.StateMachine {
 	sm := stateless.NewStateMachine("B")
 	sm.SetTriggerParameters("X", reflect.TypeOf(0))
 	sm.Configure("A").
-		Permit("X", "D", func(_ context.Context, args ...interface{}) bool {
+		Permit("X", "D", func(_ context.Context, args ...any) bool {
 			return args[0].(int) == 3
 		})
 
 	sm.Configure("B").
 		SubstateOf("A").
-		Permit("X", "C", func(_ context.Context, args ...interface{}) bool {
+		Permit("X", "C", func(_ context.Context, args ...any) bool {
 			return args[0].(int) == 2
 		})
 	return sm
 }
 
-func œ(_ context.Context, args ...interface{}) bool {
+func œ(_ context.Context, args ...any) bool {
 	return args[0].(int) == 2
 }
 
@@ -88,23 +88,23 @@ func phoneCall() *stateless.StateMachine {
 		Permit(triggerCallDialed, stateRinging)
 
 	phoneCall.Configure(stateRinging).
-		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...interface{}) error {
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
 			return nil
 		}).
 		Permit(triggerCallConnected, stateConnected)
 
 	phoneCall.Configure(stateConnected).
 		OnEntry(startCallTimer).
-		OnExit(func(_ context.Context, _ ...interface{}) error {
+		OnExit(func(_ context.Context, _ ...any) error {
 			return nil
 		}).
-		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...any) error {
 			return nil
 		}).
-		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...interface{}) error {
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...any) error {
 			return nil
 		}).
-		InternalTransition(triggerSetVolume, func(_ context.Context, args ...interface{}) error {
+		InternalTransition(triggerSetVolume, func(_ context.Context, args ...any) error {
 			return nil
 		}).
 		Permit(triggerLeftMessage, stateOffHook).

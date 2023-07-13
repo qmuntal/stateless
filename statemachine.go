@@ -10,10 +10,10 @@ import (
 )
 
 // State is used to to represent the possible machine states.
-type State = interface{}
+type State = any
 
 // Trigger is used to represent the triggers that cause state transitions.
-type Trigger = interface{}
+type Trigger = any
 
 // FiringMode enumerate the different modes used when Fire-ing a trigger.
 type FiringMode uint8
@@ -145,12 +145,12 @@ func (sm *StateMachine) MustState() State {
 }
 
 // PermittedTriggers see PermittedTriggersCtx.
-func (sm *StateMachine) PermittedTriggers(args ...interface{}) ([]Trigger, error) {
+func (sm *StateMachine) PermittedTriggers(args ...any) ([]Trigger, error) {
 	return sm.PermittedTriggersCtx(context.Background(), args...)
 }
 
 // PermittedTriggersCtx returns the currently-permissible trigger values.
-func (sm *StateMachine) PermittedTriggersCtx(ctx context.Context, args ...interface{}) ([]Trigger, error) {
+func (sm *StateMachine) PermittedTriggersCtx(ctx context.Context, args ...any) ([]Trigger, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return nil, err
@@ -206,12 +206,12 @@ func (sm *StateMachine) IsInStateCtx(ctx context.Context, state State) (bool, er
 }
 
 // CanFire see CanFireCtx.
-func (sm *StateMachine) CanFire(trigger Trigger, args ...interface{}) (bool, error) {
+func (sm *StateMachine) CanFire(trigger Trigger, args ...any) (bool, error) {
 	return sm.CanFireCtx(context.Background(), trigger, args...)
 }
 
 // CanFireCtx returns true if the trigger can be fired in the current state.
-func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger, args ...interface{}) (bool, error) {
+func (sm *StateMachine) CanFireCtx(ctx context.Context, trigger Trigger, args ...any) (bool, error) {
 	sr, err := sm.currentState(ctx)
 	if err != nil {
 		return false, err
@@ -229,7 +229,7 @@ func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...r
 }
 
 // Fire see FireCtx
-func (sm *StateMachine) Fire(trigger Trigger, args ...interface{}) error {
+func (sm *StateMachine) Fire(trigger Trigger, args ...any) error {
 	return sm.FireCtx(context.Background(), trigger, args...)
 }
 
@@ -246,7 +246,7 @@ func (sm *StateMachine) Fire(trigger Trigger, args ...interface{}) error {
 //
 // The context is passed down to all actions and callbacks called within the scope of this method.
 // There is no context error checking, although it may be implemented in future releases.
-func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...interface{}) error {
+func (sm *StateMachine) FireCtx(ctx context.Context, trigger Trigger, args ...any) error {
 	return sm.internalFire(ctx, trigger, args...)
 }
 
@@ -313,7 +313,7 @@ func (sm *StateMachine) stateRepresentation(state State) (sr *stateRepresentatio
 	return
 }
 
-func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...interface{}) error {
+func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...any) error {
 	switch sm.firingMode {
 	case FiringImmediate:
 		return sm.internalFireOne(ctx, trigger, args...)
@@ -327,10 +327,10 @@ func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args 
 type queuedTrigger struct {
 	Context context.Context
 	Trigger Trigger
-	Args    []interface{}
+	Args    []any
 }
 
-func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...interface{}) error {
+func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...any) error {
 	sm.firingMutex.Lock()
 	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
 	sm.firingMutex.Unlock()
@@ -354,7 +354,7 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	return nil
 }
 
-func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...interface{}) (err error) {
+func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) (err error) {
 	sm.ops.Add(1)
 	defer sm.ops.Add(^uint64(0))
 	var (
@@ -380,7 +380,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
 		err = sm.handleReentryTrigger(ctx, representativeState, transition, args...)
 	case *dynamicTriggerBehaviour:
-		var destination interface{}
+		var destination any
 		destination, err = t.Destination(ctx, args...)
 		if err == nil {
 			transition := Transition{Source: source, Destination: destination, Trigger: trigger}
@@ -400,7 +400,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	return
 }
 
-func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
+func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...any) error {
 	if err := sr.Exit(ctx, transition, args...); err != nil {
 		return err
 	}
@@ -423,7 +423,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 	return nil
 }
 
-func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) error {
+func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...any) error {
 	if err := sr.Exit(ctx, transition, args...); err != nil {
 		return err
 	}
@@ -446,7 +446,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 	return nil
 }
 
-func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation, transition Transition, args ...interface{}) (*stateRepresentation, error) {
+func (sm *StateMachine) enterState(ctx context.Context, sr *stateRepresentation, transition Transition, args ...any) (*stateRepresentation, error) {
 	// Enter the new state
 	err := sr.Enter(ctx, transition, args...)
 	if err != nil {

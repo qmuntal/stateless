@@ -1513,6 +1513,21 @@ func TestStateMachine_String(t *testing.T) {
 	}
 }
 
+func TestStateMachine_String_Concurrent(t *testing.T) {
+	// Test that race mode doesn't complain about concurrent access to the state machine.
+	sm := NewStateMachine(stateA)
+	const n = 10
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			_ = sm.String()
+		}()
+	}
+	wg.Wait()
+}
+
 func TestStateMachine_Firing_Queued(t *testing.T) {
 	sm := NewStateMachine(stateA)
 

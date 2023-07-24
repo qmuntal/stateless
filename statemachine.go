@@ -75,6 +75,7 @@ type StateMachine struct {
 	eventQueue             list.List
 	firingMode             FiringMode
 	firingMutex            sync.Mutex
+	stateMutex             sync.RWMutex
 }
 
 func newStateMachine() *StateMachine {
@@ -295,22 +296,25 @@ func (sm *StateMachine) setState(ctx context.Context, state State) error {
 	return sm.stateMutator(ctx, state)
 }
 
-func (sm *StateMachine) currentState(ctx context.Context) (sr *stateRepresentation, err error) {
-	var state State
-	state, err = sm.State(ctx)
-	if err == nil {
-		sr = sm.stateRepresentation(state)
+func (sm *StateMachine) currentState(ctx context.Context) (*stateRepresentation, error) {
+	state, err := sm.State(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return
+	return sm.stateRepresentation(state), nil
 }
 
-func (sm *StateMachine) stateRepresentation(state State) (sr *stateRepresentation) {
-	var ok bool
-	if sr, ok = sm.stateConfig[state]; !ok {
+func (sm *StateMachine) stateRepresentation(state State) *stateRepresentation {
+	sm.stateMutex.RLock()
+	sr, ok := sm.stateConfig[state]
+	sm.stateMutex.RUnlock()
+	if !ok {
 		sr = newstateRepresentation(state)
+		sm.stateMutex.Lock()
 		sm.stateConfig[state] = sr
+		sm.stateMutex.Unlock()
 	}
-	return
+	return sr
 }
 
 func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...any) error {
@@ -354,7 +358,7 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	return nil
 }
 
-func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) (err error) {
+func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) error {
 	sm.ops.Add(1)
 	defer sm.ops.Add(^uint64(0))
 	var (
@@ -366,7 +370,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 	}
 	source, err := sm.State(ctx)
 	if err != nil {
-		return
+		return err
 	}
 	representativeState := sm.stateRepresentation(source)
 	var result triggerBehaviourResult
@@ -397,7 +401,7 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 			err = sr.InternalAction(ctx, transition, args...)
 		}
 	}
-	return
+	return err
 }
 
 func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepresentation, transition Transition, args ...any) error {

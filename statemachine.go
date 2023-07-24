@@ -309,10 +309,13 @@ func (sm *StateMachine) stateRepresentation(state State) *stateRepresentation {
 	sr, ok := sm.stateConfig[state]
 	sm.stateMutex.RUnlock()
 	if !ok {
-		sr = newstateRepresentation(state)
 		sm.stateMutex.Lock()
-		sm.stateConfig[state] = sr
-		sm.stateMutex.Unlock()
+		defer sm.stateMutex.Unlock()
+		// Check again, since another goroutine may have added it while we were waiting for the lock.
+		if sr, ok = sm.stateConfig[state]; !ok {
+			sr = newstateRepresentation(state)
+			sm.stateConfig[state] = sr
+		}
 	}
 	return sr
 }

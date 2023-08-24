@@ -61,19 +61,22 @@ func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...any) boo
 	return true
 }
 
-func (t transitionGuard) UnmetGuardConditions(ctx context.Context, args ...any) []string {
-	unmet := make([]string, 0, len(t.Guards))
+func (t transitionGuard) UnmetGuardConditions(ctx context.Context, buf []string, args ...any) []string {
+	if cap(buf) < len(t.Guards) {
+		buf = make([]string, 0, len(t.Guards))
+	}
+	buf = buf[:0]
 	for _, guard := range t.Guards {
 		if !guard.Guard(ctx, args...) {
-			unmet = append(unmet, guard.Description.String())
+			buf = append(buf, guard.Description.String())
 		}
 	}
-	return unmet
+	return buf
 }
 
 type triggerBehaviour interface {
 	GuardConditionMet(context.Context, ...any) bool
-	UnmetGuardConditions(context.Context, ...any) []string
+	UnmetGuardConditions(context.Context, []string, ...any) []string
 	GetTrigger() Trigger
 }
 
@@ -90,8 +93,8 @@ func (t *baseTriggerBehaviour) GuardConditionMet(ctx context.Context, args ...an
 	return t.Guard.GuardConditionMet(ctx, args...)
 }
 
-func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, args ...any) []string {
-	return t.Guard.UnmetGuardConditions(ctx, args...)
+func (t *baseTriggerBehaviour) UnmetGuardConditions(ctx context.Context, buf []string, args ...any) []string {
+	return t.Guard.UnmetGuardConditions(ctx, buf, args...)
 }
 
 type ignoredTriggerBehaviour struct {

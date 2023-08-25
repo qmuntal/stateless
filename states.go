@@ -72,37 +72,26 @@ func (sr *stateRepresentation) FindHandler(ctx context.Context, trigger Trigger,
 }
 
 func (sr *stateRepresentation) findHandler(ctx context.Context, trigger Trigger, args ...any) (result triggerBehaviourResult, ok bool) {
-	var (
-		possibleBehaviours []triggerBehaviour
-	)
-	if possibleBehaviours, ok = sr.TriggerBehaviours[trigger]; !ok {
+	possibleBehaviours, ok := sr.TriggerBehaviours[trigger]
+	if !ok {
 		return
 	}
-	allResults := make([]triggerBehaviourResult, 0, len(possibleBehaviours))
+	var unmet []string
 	for _, behaviour := range possibleBehaviours {
-		allResults = append(allResults, triggerBehaviourResult{
-			Handler:              behaviour,
-			UnmetGuardConditions: behaviour.UnmetGuardConditions(ctx, args...),
-		})
-	}
-	metResults := make([]triggerBehaviourResult, 0, len(allResults))
-	unmetResults := make([]triggerBehaviourResult, 0, len(allResults))
-	for _, result := range allResults {
-		if len(result.UnmetGuardConditions) == 0 {
-			metResults = append(metResults, result)
-		} else {
-			unmetResults = append(unmetResults, result)
+		unmet = behaviour.UnmetGuardConditions(ctx, unmet[:0], args...)
+		if len(unmet) == 0 {
+			if result.Handler != nil && len(result.UnmetGuardConditions) == 0 {
+				panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%v' for trigger '%v'. Guard clauses must be mutually exclusive.", sr.State, trigger))
+			}
+			result.Handler = behaviour
+			result.UnmetGuardConditions = nil
+		} else if result.Handler == nil {
+			result.Handler = behaviour
+			result.UnmetGuardConditions = make([]string, len(unmet))
+			copy(result.UnmetGuardConditions, unmet)
 		}
 	}
-	if len(metResults) > 1 {
-		panic(fmt.Sprintf("stateless: Multiple permitted exit transitions are configured from state '%v' for trigger '%v'. Guard clauses must be mutually exclusive.", sr.State, trigger))
-	}
-	if len(metResults) == 1 {
-		result, ok = metResults[0], true
-	} else if len(unmetResults) > 0 {
-		result, ok = unmetResults[0], false
-	}
-	return
+	return result, result.Handler != nil && len(result.UnmetGuardConditions) == 0
 }
 
 func (sr *stateRepresentation) Activate(ctx context.Context) error {
@@ -210,9 +199,10 @@ func (sr *stateRepresentation) AddTriggerBehaviour(tb triggerBehaviour) {
 }
 
 func (sr *stateRepresentation) PermittedTriggers(ctx context.Context, args ...any) (triggers []Trigger) {
+	var unmet []string
 	for key, value := range sr.TriggerBehaviours {
 		for _, tb := range value {
-			if len(tb.UnmetGuardConditions(ctx, args...)) == 0 {
+			if len(tb.UnmetGuardConditions(ctx, unmet[:0], args...)) == 0 {
 				triggers = append(triggers, key)
 				break
 			}

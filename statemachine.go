@@ -1,7 +1,6 @@
 package stateless
 
 import (
-	"container/list"
 	"context"
 	"fmt"
 	"reflect"
@@ -72,7 +71,7 @@ type StateMachine struct {
 	unhandledTriggerAction UnhandledTriggerActionFunc
 	onTransitioningEvents  []TransitionFunc
 	onTransitionedEvents   []TransitionFunc
-	eventQueue             list.List
+	eventQueue             queue
 	firingMode             FiringMode
 	firingMutex            sync.Mutex
 	stateMutex             sync.RWMutex
@@ -323,6 +322,8 @@ func (sm *StateMachine) stateRepresentation(state State) *stateRepresentation {
 func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...any) error {
 	switch sm.firingMode {
 	case FiringImmediate:
+		sm.ops.Add(1)
+		defer sm.ops.Add(^uint64(0))
 		return sm.internalFireOne(ctx, trigger, args...)
 	case FiringQueued:
 		fallthrough
@@ -337,33 +338,56 @@ type queuedTrigger struct {
 	Args    []any
 }
 
-func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...any) error {
-	sm.firingMutex.Lock()
-	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
-	sm.firingMutex.Unlock()
-	if sm.Firing() {
-		return nil
-	}
+type queue struct {
+	triggers []queuedTrigger
+	mu       sync.Mutex
+}
 
-	for {
-		sm.firingMutex.Lock()
-		e := sm.eventQueue.Front()
-		if e == nil {
-			sm.firingMutex.Unlock()
-			break
-		}
-		et := sm.eventQueue.Remove(e).(queuedTrigger)
-		sm.firingMutex.Unlock()
-		if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
-			return err
-		}
+func (q *queue) pushBack(ctx context.Context, trigger Trigger, args ...any) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.triggers = append(q.triggers, queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
+}
+
+func (q *queue) popFront() (et queuedTrigger, ok bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.triggers) == 0 {
+		return queuedTrigger{}, false
 	}
+	et, q.triggers = q.triggers[0], q.triggers[1:]
+	return et, true
+}
+
+func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...any) error {
+	if !sm.Firing() {
+		sm.firingMutex.Lock()
+		// Check again, since another goroutine may have added it while we were waiting for the lock.
+		if !sm.Firing() {
+			sm.ops.Add(1) // In this mode there is always only one operation in progress
+			sm.firingMutex.Unlock()
+			defer sm.ops.Add(^uint64(0))
+			if err := sm.internalFireOne(ctx, trigger, args...); err != nil {
+				return err
+			}
+			for {
+				et, ok := sm.eventQueue.popFront()
+				if !ok {
+					break
+				}
+				if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		sm.firingMutex.Unlock()
+	}
+	sm.eventQueue.pushBack(ctx, trigger, args...)
 	return nil
 }
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) error {
-	sm.ops.Add(1)
-	defer sm.ops.Add(^uint64(0))
 	var (
 		config triggerWithParameters
 		ok     bool

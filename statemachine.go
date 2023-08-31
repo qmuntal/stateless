@@ -341,9 +341,10 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	sm.firingMutex.Lock()
 	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
 	sm.firingMutex.Unlock()
-	if sm.Firing() {
+	if !sm.ops.CompareAndSwap(0, 1) {
 		return nil
 	}
+	defer sm.ops.Add(^uint64(0))
 
 	for {
 		sm.firingMutex.Lock()

@@ -346,6 +346,7 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 	}
 	defer sm.ops.Add(^uint64(0))
 
+	var firstErr error
 	for {
 		sm.firingMutex.Lock()
 		e := sm.eventQueue.Front()
@@ -356,10 +357,12 @@ func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger,
 		et := sm.eventQueue.Remove(e).(queuedTrigger)
 		sm.firingMutex.Unlock()
 		if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
-			return err
+			if  firstErr == nil {
+				firstErr = err
+			}
 		}
 	}
-	return nil
+	return firstErr
 }
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) error {

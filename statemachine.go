@@ -73,7 +73,6 @@ type StateMachine struct {
 	onTransitionedEvents   []TransitionFunc
 	eventQueue             queue
 	firingMode             FiringMode
-	firingMutex            sync.Mutex
 	stateMutex             sync.RWMutex
 }
 
@@ -343,47 +342,50 @@ type queue struct {
 	mu       sync.Mutex
 }
 
-func (q *queue) pushBack(ctx context.Context, trigger Trigger, args ...any) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.triggers = append(q.triggers, queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
+func (sm *StateMachine) queueEvent(ctx context.Context, trigger Trigger, args ...any) {
+	sm.eventQueue.mu.Lock()
+	defer sm.eventQueue.mu.Unlock()
+
+	sm.eventQueue.triggers = append(sm.eventQueue.triggers, queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
 }
 
-func (q *queue) popFront() (et queuedTrigger, ok bool) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	if len(q.triggers) == 0 {
+func (sm *StateMachine) fetchOneEvent() (et queuedTrigger, ok bool) {
+	sm.eventQueue.mu.Lock()
+	defer sm.eventQueue.mu.Unlock()
+
+	if len(sm.eventQueue.triggers) == 0 {
 		return queuedTrigger{}, false
 	}
-	et, q.triggers = q.triggers[0], q.triggers[1:]
+
+	if !sm.ops.CompareAndSwap(0, 1) {
+		return queuedTrigger{}, false
+	}
+
+	et, sm.eventQueue.triggers = sm.eventQueue.triggers[0], sm.eventQueue.triggers[1:]
 	return et, true
 }
 
+func (sm *StateMachine) executeOneEvent(et queuedTrigger) error {
+	defer sm.ops.Add(^uint64(0))
+
+	return sm.internalFireOne(et.Context, et.Trigger, et.Args...)
+}
+
 func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...any) error {
-	if !sm.Firing() {
-		sm.firingMutex.Lock()
-		// Check again, since another goroutine may have added it while we were waiting for the lock.
-		if !sm.Firing() {
-			sm.ops.Add(1) // In this mode there is always only one operation in progress
-			sm.firingMutex.Unlock()
-			defer sm.ops.Add(^uint64(0))
-			if err := sm.internalFireOne(ctx, trigger, args...); err != nil {
-				return err
-			}
-			for {
-				et, ok := sm.eventQueue.popFront()
-				if !ok {
-					break
-				}
-				if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
-					return err
-				}
-			}
-			return nil
+	sm.queueEvent(ctx, trigger, args...)
+
+	for {
+		et, ok := sm.fetchOneEvent()
+		if !ok {
+			break
 		}
-		sm.firingMutex.Unlock()
+
+		err := sm.executeOneEvent(et)
+		if err != nil {
+			return err
+		}
 	}
-	sm.eventQueue.pushBack(ctx, trigger, args...)
+
 	return nil
 }
 

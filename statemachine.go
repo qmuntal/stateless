@@ -1,12 +1,10 @@
 package stateless
 
 import (
-	"container/list"
 	"context"
 	"fmt"
 	"reflect"
 	"sync"
-	"sync/atomic"
 )
 
 // State is used to to represent the possible machine states.
@@ -64,7 +62,6 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 // It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
 // so it is up to the client to protect them against race conditions.
 type StateMachine struct {
-	ops                    atomic.Uint64
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]triggerWithParameters
 	stateAccessor          func(context.Context) (State, error)
@@ -72,18 +69,22 @@ type StateMachine struct {
 	unhandledTriggerAction UnhandledTriggerActionFunc
 	onTransitioningEvents  []TransitionFunc
 	onTransitionedEvents   []TransitionFunc
-	eventQueue             list.List
-	firingMode             FiringMode
-	firingMutex            sync.Mutex
 	stateMutex             sync.RWMutex
+	mode                   fireMode
 }
 
-func newStateMachine() *StateMachine {
-	return &StateMachine{
+func newStateMachine(firingMode FiringMode) *StateMachine {
+	sm := &StateMachine{
 		stateConfig:            make(map[State]*stateRepresentation),
 		triggerConfig:          make(map[Trigger]triggerWithParameters),
 		unhandledTriggerAction: UnhandledTriggerActionFunc(DefaultUnhandledTriggerAction),
 	}
+	if firingMode == FiringImmediate {
+		sm.mode = &fireModeImmediate{sm: sm}
+	} else {
+		sm.mode = &fireModeQueued{sm: sm}
+	}
+	return sm
 }
 
 // NewStateMachine returns a queued state machine.
@@ -94,7 +95,7 @@ func NewStateMachine(initialState State) *StateMachine {
 // NewStateMachineWithMode returns a state machine with the desired firing mode
 func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMachine {
 	var stateMutex sync.Mutex
-	sm := newStateMachine()
+	sm := newStateMachine(firingMode)
 	reference := &struct {
 		State State
 	}{State: initialState}
@@ -109,16 +110,14 @@ func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMa
 		reference.State = state
 		return nil
 	}
-	sm.firingMode = firingMode
 	return sm
 }
 
 // NewStateMachineWithExternalStorage returns a state machine with external state storage.
 func NewStateMachineWithExternalStorage(stateAccessor func(context.Context) (State, error), stateMutator func(context.Context, State) error, firingMode FiringMode) *StateMachine {
-	sm := newStateMachine()
+	sm := newStateMachine(firingMode)
 	sm.stateAccessor = stateAccessor
 	sm.stateMutator = stateMutator
-	sm.firingMode = firingMode
 	return sm
 }
 
@@ -276,7 +275,7 @@ func (sm *StateMachine) Configure(state State) *StateConfiguration {
 
 // Firing returns true when the state machine is processing a trigger.
 func (sm *StateMachine) Firing() bool {
-	return sm.ops.Load() != 0
+	return sm.mode.Firing()
 }
 
 // String returns a human-readable representation of the state machine.
@@ -321,49 +320,10 @@ func (sm *StateMachine) stateRepresentation(state State) *stateRepresentation {
 }
 
 func (sm *StateMachine) internalFire(ctx context.Context, trigger Trigger, args ...any) error {
-	switch sm.firingMode {
-	case FiringImmediate:
-		return sm.internalFireOne(ctx, trigger, args...)
-	case FiringQueued:
-		fallthrough
-	default:
-		return sm.internalFireQueued(ctx, trigger, args...)
-	}
-}
-
-type queuedTrigger struct {
-	Context context.Context
-	Trigger Trigger
-	Args    []any
-}
-
-func (sm *StateMachine) internalFireQueued(ctx context.Context, trigger Trigger, args ...any) error {
-	sm.firingMutex.Lock()
-	sm.eventQueue.PushBack(queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
-	sm.firingMutex.Unlock()
-	if sm.Firing() {
-		return nil
-	}
-
-	for {
-		sm.firingMutex.Lock()
-		e := sm.eventQueue.Front()
-		if e == nil {
-			sm.firingMutex.Unlock()
-			break
-		}
-		et := sm.eventQueue.Remove(e).(queuedTrigger)
-		sm.firingMutex.Unlock()
-		if err := sm.internalFireOne(et.Context, et.Trigger, et.Args...); err != nil {
-			return err
-		}
-	}
-	return nil
+	return sm.mode.Fire(ctx, trigger, args...)
 }
 
 func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, args ...any) error {
-	sm.ops.Add(1)
-	defer sm.ops.Add(^uint64(0))
 	var (
 		config triggerWithParameters
 		ok     bool

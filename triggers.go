@@ -139,7 +139,7 @@ type triggerWithParameters struct {
 
 func (t triggerWithParameters) validateParameters(args ...any) {
 	if len(args) != len(t.ArgumentTypes) {
-		panic(fmt.Sprintf("stateless: Too many parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
+		panic(fmt.Sprintf("stateless: An unexpected amount of parameters have been supplied. Expecting '%d' but got '%d'.", len(t.ArgumentTypes), len(args)))
 	}
 	for i := range t.ArgumentTypes {
 		tp := reflect.TypeOf(args[i])

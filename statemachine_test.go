@@ -1612,3 +1612,28 @@ func assertPanic(t *testing.T, f func()) {
 	}()
 	f()
 }
+
+func TestStateMachineWhenInSubstate_TriggerSuperStateTwiceToSameSubstate_DoesNotReenterSubstate(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var eCount = 0
+
+	sm.Configure(stateB).
+		OnEntry(func(_ context.Context, _ ...any) error {
+			eCount++
+			return nil
+		}).
+		SubstateOf(stateC)
+
+	sm.Configure(stateA).
+		SubstateOf(stateC)
+
+	sm.Configure(stateC).
+		Permit(triggerX, stateB)
+
+	sm.Fire(triggerX)
+	sm.Fire(triggerX)
+
+	if eCount != 1 {
+		t.Errorf("expected 1, got %d", eCount)
+	}
+}

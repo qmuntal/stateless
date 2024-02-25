@@ -354,6 +354,10 @@ func (sm *StateMachine) internalFireOne(ctx context.Context, trigger Trigger, ar
 			err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 		}
 	case *transitioningTriggerBehaviour:
+		if source == t.Destination {
+			// If a trigger was found on a superstate that would cause unintended reentry, don't trigger.
+			break
+		}
 		transition := Transition{Source: source, Destination: t.Destination, Trigger: trigger}
 		err = sm.handleTransitioningTrigger(ctx, representativeState, transition, args...)
 	case *internalTriggerBehaviour:

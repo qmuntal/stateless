@@ -160,6 +160,16 @@ func (sc *StateConfiguration) OnExit(action ActionFunc) *StateConfiguration {
 	return sc
 }
 
+// OnExitWith specifies an action that will execute when transitioning from the configured state with a specific trigger.
+func (sc *StateConfiguration) OnExitWith(trigger Trigger, action ActionFunc) *StateConfiguration {
+	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour{
+		Action:      action,
+		Description: newinvocationInfo(action),
+		Trigger:     &trigger,
+	})
+	return sc
+}
+
 // SubstateOf sets the superstate that the configured state is a substate of.
 // Substates inherit the allowed transitions of their superstate.
 // When entering directly into a substate from outside of the superstate,

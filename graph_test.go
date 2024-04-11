@@ -112,6 +112,10 @@ func phoneCall() *stateless.StateMachine {
 
 	phoneCall.Configure(stateOnHold).
 		SubstateOf(stateConnected).
+		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, args ...any) error {
+			onWasted()
+			return nil
+		}).
 		Permit(triggerTakenOffHold, stateConnected).
 		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 

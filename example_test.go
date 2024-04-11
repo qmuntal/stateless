@@ -66,6 +66,10 @@ func Example() {
 
 	phoneCall.Configure(stateOnHold).
 		SubstateOf(stateConnected).
+		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, args ...any) error {
+			onWasted()
+			return nil
+		}).
 		Permit(triggerTakenOffHold, stateConnected).
 		Permit(triggerPhoneHurledAgainstWall, statePhoneDestroyed)
 
@@ -90,6 +94,7 @@ func Example() {
 	// Microphone muted!
 	// Microphone unmuted!
 	// Volume set to 11!
+	// Wasted!
 	// [Timer:] Call ended at 11:30am
 	// State is PhoneDestroyed
 
@@ -109,6 +114,10 @@ func onMute() {
 
 func onDialed(callee string) {
 	fmt.Printf("[Phone Call] placed for : [%s]\n", callee)
+}
+
+func onWasted() {
+	fmt.Println("Wasted!")
 }
 
 func startCallTimer(_ context.Context, _ ...any) error {

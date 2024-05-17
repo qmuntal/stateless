@@ -368,6 +368,31 @@ func TestStateMachine_Fire_ParametersSuppliedToFireArePassedToEntryAction(t *tes
 	}
 }
 
+func TestStateMachine_Fire_ParametersSuppliedToFireArePassedToExitAction(t *testing.T) {
+	sm := NewStateMachine(stateB)
+	sm.SetTriggerParameters(triggerX, reflect.TypeOf(""), reflect.TypeOf(0))
+	sm.Configure(stateB).Permit(triggerX, stateC)
+
+	var (
+		entryArg1 string
+		entryArg2 int
+	)
+	sm.Configure(stateB).OnExitWith(triggerX, func(_ context.Context, args ...any) error {
+		entryArg1 = args[0].(string)
+		entryArg2 = args[1].(int)
+		return nil
+	})
+	suppliedArg1, suppliedArg2 := "something", 2
+	sm.Fire(triggerX, suppliedArg1, suppliedArg2)
+
+	if entryArg1 != suppliedArg1 {
+		t.Errorf("entryArg1 = %v, want %v", entryArg1, suppliedArg1)
+	}
+	if entryArg2 != suppliedArg2 {
+		t.Errorf("entryArg2 = %v, want %v", entryArg2, suppliedArg2)
+	}
+}
+
 func TestStateMachine_OnUnhandledTrigger_TheProvidedHandlerIsCalledWithStateAndTrigger(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	var (
@@ -556,6 +581,29 @@ func TestStateMachine_Fire_IgnoreVsPermitReentryFrom(t *testing.T) {
 			return nil
 		}).
 		OnEntryFrom(triggerY, func(_ context.Context, _ ...any) error {
+			calls += 1
+			return nil
+		}).
+		PermitReentry(triggerX).
+		Ignore(triggerY)
+
+	sm.Fire(triggerX)
+	sm.Fire(triggerY)
+
+	if calls != 1 {
+		t.Errorf("calls = %d, want %d", calls, 1)
+	}
+}
+
+func TestStateMachine_Fire_IgnoreVsPermitReentryExitWith(t *testing.T) {
+	sm := NewStateMachine(stateA)
+	var calls int
+	sm.Configure(stateA).
+		OnExitWith(triggerX, func(_ context.Context, _ ...any) error {
+			calls += 1
+			return nil
+		}).
+		OnExitWith(triggerY, func(_ context.Context, _ ...any) error {
 			calls += 1
 			return nil
 		}).

@@ -12,6 +12,19 @@ import (
 type graph struct {
 }
 
+// GraphConfiguration holds the configuration that is used to render
+// graphs with the ToGraph method.
+type GraphConfiguration struct {
+	OmitIgnoredTransitions   bool // OmitIgnoredTransitions can be used to omit ignored transition from graphs.
+	OmitReentrantTransitions bool // OmitReentrantTransitions can be used to omit reentrant transition from graphs.
+	OmitInternalTransitions  bool // OmitInternalTransitions can be used to omit internal transition from graphs.
+
+	// Any color defined for Graphviz may be used; see https://graphviz.org/doc/info/colors.html.
+	IgnoredTransitionColor   string // IgnoredTransitionColor is the color of ignored transitions.
+	ReentrantTransitionColor string // ReentrantTransitionColor is the color of reentrant transitions.
+	InternalTransitionColor  string // InternalTransitionColor is the color of internal transitions.
+}
+
 func (g *graph) formatStateMachine(sm *StateMachine) string {
 	var sb strings.Builder
 	sb.WriteString("digraph {\n\tcompound=true;\n\tnode [shape=Mrecord];\n\trankdir=\"LR\";\n\n")
@@ -34,7 +47,7 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
 				src := clusterStr(sr.State, true, true)
-				sb.WriteString(g.formatOneLine(src, str(dest.State, true), ""))
+				sb.WriteString(g.formatOneLine(src, str(dest.State, true), "", ""))
 			}
 		}
 	}
@@ -126,13 +139,19 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 	for _, trigger := range triggerList {
 		switch t := trigger.(type) {
 		case *ignoredTriggerBehaviour:
-			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, nil, t.Guard))
+			if !sm.graphConfig.OmitIgnoredTransitions {
+				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t, nil, t.Guard))
+			}
 		case *reentryTriggerBehaviour:
-			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-			sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t.Trigger, actions, t.Guard))
+			if !sm.graphConfig.OmitReentrantTransitions {
+				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+				sb.WriteString(g.formatOneTransition(sm, sr.State, t.Destination, t, actions, t.Guard))
+			}
 		case *internalTriggerBehaviour:
-			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
-			sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t.Trigger, actions, t.Guard))
+			if !sm.graphConfig.OmitInternalTransitions {
+				actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+				sb.WriteString(g.formatOneTransition(sm, sr.State, sr.State, t, actions, t.Guard))
+			}
 		case *transitioningTriggerBehaviour:
 			src := sm.stateConfig[sr.State]
 			if src == nil {
@@ -149,7 +168,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 			} else {
 				destState = dest.State
 			}
-			sb.WriteString(g.formatOneTransition(sm, src.State, destState, t.Trigger, actions, t.Guard))
+			sb.WriteString(g.formatOneTransition(sm, src.State, destState, t, actions, t.Guard))
 		case *dynamicTriggerBehaviour:
 			// TODO: not supported yet
 		}
@@ -157,9 +176,9 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 	return sb.String()
 }
 
-func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, trigger Trigger, actions []string, guards transitionGuard) string {
+func (g *graph) formatOneTransition(sm *StateMachine, source, destination State, tb triggerBehaviour, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
-	sb.WriteString(str(trigger, false))
+	sb.WriteString(str(tb.GetTrigger(), false))
 	if len(actions) > 0 {
 		sb.WriteString(" / ")
 		sb.WriteString(strings.Join(actions, ", "))
@@ -170,12 +189,28 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 		}
 		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), false)))
 	}
-	return g.formatOneLine(str(source, true), str(destination, true), sb.String())
+	color := esc(findColorForTrigger(sm, tb), false)
+	return g.formatOneLine(str(source, true), str(destination, true), sb.String(), color)
 }
 
-func (g *graph) formatOneLine(fromNodeName, toNodeName, label string) string {
+func findColorForTrigger(sm *StateMachine, tb triggerBehaviour) string {
+	switch tb.(type) {
+	case *ignoredTriggerBehaviour:
+		return sm.graphConfig.IgnoredTransitionColor
+	case *reentryTriggerBehaviour:
+		return sm.graphConfig.ReentrantTransitionColor
+	case *internalTriggerBehaviour:
+		return sm.graphConfig.InternalTransitionColor
+	}
+	return ""
+}
+
+func (g *graph) formatOneLine(fromNodeName, toNodeName, label, color string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
+	if color != "" {
+		sb.WriteString(fmt.Sprintf(` color="%s" fontcolor="%s"`, color, color))
+	}
 	sb.WriteString("];\n")
 	return sb.String()
 }

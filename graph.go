@@ -3,6 +3,7 @@ package stateless
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"sort"
 	"strings"
 	"text/template"
@@ -19,10 +20,9 @@ type GraphConfiguration struct {
 	OmitReentrantTransitions bool // OmitReentrantTransitions can be used to omit reentrant transition from graphs.
 	OmitInternalTransitions  bool // OmitInternalTransitions can be used to omit internal transition from graphs.
 
-	// Any color defined for Graphviz may be used; see https://graphviz.org/doc/info/colors.html.
-	IgnoredTransitionColor   string // IgnoredTransitionColor is the color of ignored transitions.
-	ReentrantTransitionColor string // ReentrantTransitionColor is the color of reentrant transitions.
-	InternalTransitionColor  string // InternalTransitionColor is the color of internal transitions.
+	IgnoredTransitionColor   color.Color // IgnoredTransitionColor is the color of ignored transitions. nil represents the default color.
+	ReentrantTransitionColor color.Color // ReentrantTransitionColor is the color of reentrant transitions. nil represents the default color.
+	InternalTransitionColor  color.Color // InternalTransitionColor is the color of internal transitions. nil represents the default color.
 }
 
 func (g *graph) formatStateMachine(sm *StateMachine) string {
@@ -47,7 +47,7 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
 				src := clusterStr(sr.State, true, true)
-				sb.WriteString(g.formatOneLine(src, str(dest.State, true), "", ""))
+				sb.WriteString(g.formatOneLine(src, str(dest.State, true), "", nil))
 			}
 		}
 	}
@@ -189,11 +189,11 @@ func (g *graph) formatOneTransition(sm *StateMachine, source, destination State,
 		}
 		sb.WriteString(fmt.Sprintf("[%s]", esc(info.Description.String(), false)))
 	}
-	color := esc(findColorForTrigger(sm, tb), false)
+	color := findColorForTrigger(sm, tb)
 	return g.formatOneLine(str(source, true), str(destination, true), sb.String(), color)
 }
 
-func findColorForTrigger(sm *StateMachine, tb triggerBehaviour) string {
+func findColorForTrigger(sm *StateMachine, tb triggerBehaviour) color.Color {
 	switch tb.(type) {
 	case *ignoredTriggerBehaviour:
 		return sm.graphConfig.IgnoredTransitionColor
@@ -202,17 +202,23 @@ func findColorForTrigger(sm *StateMachine, tb triggerBehaviour) string {
 	case *internalTriggerBehaviour:
 		return sm.graphConfig.InternalTransitionColor
 	}
-	return ""
+	return nil
 }
 
-func (g *graph) formatOneLine(fromNodeName, toNodeName, label, color string) string {
+func (g *graph) formatOneLine(fromNodeName, toNodeName, label string, color color.Color) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
-	if color != "" {
-		sb.WriteString(fmt.Sprintf(` color="%s" fontcolor="%s"`, color, color))
+	if color != nil {
+		graphvizColor := toGraphvizColor(color)
+		sb.WriteString(fmt.Sprintf(` color="%s" fontcolor="%s"`, graphvizColor, graphvizColor))
 	}
 	sb.WriteString("];\n")
 	return sb.String()
+}
+
+func toGraphvizColor(color color.Color) string {
+	r, g, b, a := color.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x%02x", r>>8, g>>8, b>>8, a>>8)
 }
 
 func clusterStr(state any, quote, init bool) string {

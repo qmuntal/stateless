@@ -64,6 +64,7 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]triggerWithParameters
+	graphConfig            GraphConfiguration
 	stateAccessor          func(context.Context) (State, error)
 	stateMutator           func(context.Context, State) error
 	unhandledTriggerAction UnhandledTriggerActionFunc
@@ -226,6 +227,12 @@ func (sm *StateMachine) SetTriggerParameters(trigger Trigger, argumentTypes ...r
 		panic(fmt.Sprintf("stateless: Parameters for the trigger '%v' have already been configured.", trigger))
 	}
 	sm.triggerConfig[trigger] = config
+}
+
+// SetGraphConfiguration sets a new configuration for rendering graphs
+// using the ToGraph function.
+func (sm *StateMachine) SetGraphConfiguration(config GraphConfiguration) {
+	sm.graphConfig = config
 }
 
 // Fire see FireCtx

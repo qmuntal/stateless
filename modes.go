@@ -6,45 +6,45 @@ import (
 	"sync/atomic"
 )
 
-type fireMode interface {
-	Fire(ctx context.Context, trigger Trigger, args ...any) error
+type fireMode[T Trigger] interface {
+	Fire(ctx context.Context, trigger T, args ...any) error
 	Firing() bool
 }
 
-type fireModeImmediate struct {
+type fireModeImmediate[S State, T Trigger] struct {
 	ops atomic.Uint64
-	sm  *StateMachine
+	sm  *StateMachine[S, T]
 }
 
-func (f *fireModeImmediate) Firing() bool {
+func (f *fireModeImmediate[_, _]) Firing() bool {
 	return f.ops.Load() > 0
 }
 
-func (f *fireModeImmediate) Fire(ctx context.Context, trigger Trigger, args ...any) error {
+func (f *fireModeImmediate[_, T]) Fire(ctx context.Context, trigger T, args ...any) error {
 	f.ops.Add(1)
 	defer f.ops.Add(^uint64(0))
 	return f.sm.internalFireOne(ctx, trigger, args...)
 }
 
-type queuedTrigger struct {
+type queuedTrigger[T Trigger] struct {
 	Context context.Context
-	Trigger Trigger
+	Trigger T
 	Args    []any
 }
 
-type fireModeQueued struct {
+type fireModeQueued[S State, T Trigger] struct {
 	firing atomic.Bool
-	sm     *StateMachine
+	sm     *StateMachine[S, T]
 
-	triggers []queuedTrigger
+	triggers []queuedTrigger[T]
 	mu       sync.Mutex // guards triggers
 }
 
-func (f *fireModeQueued) Firing() bool {
+func (f *fireModeQueued[_, _]) Firing() bool {
 	return f.firing.Load()
 }
 
-func (f *fireModeQueued) Fire(ctx context.Context, trigger Trigger, args ...any) error {
+func (f *fireModeQueued[_, T]) Fire(ctx context.Context, trigger T, args ...any) error {
 	f.enqueue(ctx, trigger, args...)
 	for {
 		et, ok := f.fetch()
@@ -59,30 +59,30 @@ func (f *fireModeQueued) Fire(ctx context.Context, trigger Trigger, args ...any)
 	return nil
 }
 
-func (f *fireModeQueued) enqueue(ctx context.Context, trigger Trigger, args ...any) {
+func (f *fireModeQueued[_, T]) enqueue(ctx context.Context, trigger T, args ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.triggers = append(f.triggers, queuedTrigger{Context: ctx, Trigger: trigger, Args: args})
+	f.triggers = append(f.triggers, queuedTrigger[T]{Context: ctx, Trigger: trigger, Args: args})
 }
 
-func (f *fireModeQueued) fetch() (et queuedTrigger, ok bool) {
+func (f *fireModeQueued[S, T]) fetch() (et queuedTrigger[T], ok bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if len(f.triggers) == 0 {
-		return queuedTrigger{}, false
+		return queuedTrigger[T]{}, false
 	}
 
 	if !f.firing.CompareAndSwap(false, true) {
-		return queuedTrigger{}, false
+		return queuedTrigger[T]{}, false
 	}
 
 	et, f.triggers = f.triggers[0], f.triggers[1:]
 	return et, true
 }
 
-func (f *fireModeQueued) execute(et queuedTrigger) error {
+func (f *fireModeQueued[S, T]) execute(et queuedTrigger[T]) error {
 	defer f.firing.Swap(false)
 	return f.sm.internalFireOne(et.Context, et.Trigger, et.Args...)
 }

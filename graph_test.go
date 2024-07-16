@@ -15,20 +15,20 @@ import (
 
 var update = flag.Bool("update", false, "update golden files on failure")
 
-func emptyWithInitial() *stateless.StateMachine {
-	return stateless.NewStateMachine("A")
+func emptyWithInitial() *stateless.StateMachine[string, string] {
+	return stateless.NewStateMachine[string, string]("A")
 }
 
-func withSubstate() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("B")
+func withSubstate() *stateless.StateMachine[string, string] {
+	sm := stateless.NewStateMachine[string, string]("B")
 	sm.Configure("A").Permit("Z", "B")
 	sm.Configure("B").SubstateOf("C").Permit("X", "A")
 	sm.Configure("C").Permit("Y", "A").Ignore("X")
 	return sm
 }
 
-func withInitialState() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("A")
+func withInitialState() *stateless.StateMachine[string, string] {
+	sm := stateless.NewStateMachine[string, string]("A")
 	sm.Configure("A").
 		Permit("X", "B")
 	sm.Configure("B").
@@ -41,8 +41,8 @@ func withInitialState() *stateless.StateMachine {
 	return sm
 }
 
-func withGuards() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("B")
+func withGuards() *stateless.StateMachine[string, string] {
+	sm := stateless.NewStateMachine[string, string]("B")
 	sm.SetTriggerParameters("X", reflect.TypeOf(0))
 	sm.Configure("A").
 		Permit("X", "D", func(_ context.Context, args ...any) bool {
@@ -61,8 +61,8 @@ func œ(_ context.Context, args ...any) bool {
 	return args[0].(int) == 2
 }
 
-func withUnicodeNames() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("Ĕ")
+func withUnicodeNames() *stateless.StateMachine[string, string] {
+	sm := stateless.NewStateMachine[string, string]("Ĕ")
 	sm.Configure("Ĕ").
 		Permit("◵", "ų", œ)
 	sm.Configure("ų").
@@ -79,8 +79,8 @@ func withUnicodeNames() *stateless.StateMachine {
 	return sm
 }
 
-func phoneCall() *stateless.StateMachine {
-	phoneCall := stateless.NewStateMachine(stateOffHook)
+func phoneCall() *stateless.StateMachine[string, string] {
+	phoneCall := stateless.NewStateMachine[string, string](stateOffHook)
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
@@ -123,7 +123,7 @@ func phoneCall() *stateless.StateMachine {
 }
 
 func TestStateMachine_ToGraph(t *testing.T) {
-	tests := []func() *stateless.StateMachine{
+	tests := []func() *stateless.StateMachine[string, string]{
 		emptyWithInitial,
 		withSubstate,
 		withInitialState,

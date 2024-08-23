@@ -155,3 +155,11 @@ func TestStateMachine_ToGraph(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkToGraph(b *testing.B) {
+	sm := phoneCall()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = sm.ToGraph()
+	}
+}

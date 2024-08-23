@@ -26,7 +26,7 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 
 	for _, sr := range stateList {
 		if sr.Superstate == nil {
-			sb.WriteString(g.formatOneState(sr, 1))
+			g.formatOneState(&sb, sr, 1)
 		}
 	}
 	for _, sr := range stateList {
@@ -34,12 +34,12 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
 				src := clusterStr(sr.State, true, true)
-				sb.WriteString(g.formatOneLine(src, str(dest.State, true), ""))
+				formatOneLine(&sb, src, str(dest.State, true), "")
 			}
 		}
 	}
 	for _, sr := range stateList {
-		sb.WriteString(g.formatAllStateTransitions(sm, sr))
+		g.formatAllStateTransitions(&sb, sm, sr)
 	}
 	initialState, err := sm.State(context.Background())
 	if err == nil {
@@ -69,12 +69,11 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 	return strings.Join(es, "\\n")
 }
 
-func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
+func (g *graph) formatOneState(sb *strings.Builder, sr *stateRepresentation, level int) {
 	var indent string
 	for i := 0; i < level; i++ {
 		indent += "\t"
 	}
-	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("%s%s [label=\"%s", indent, str(sr.State, true), str(sr.State, false)))
 	act := g.formatActions(sr)
 	if act != "" {
@@ -93,11 +92,10 @@ func (g *graph) formatOneState(sr *stateRepresentation, level int) string {
 			sb.WriteString(fmt.Sprintf("%s\t\"%s\" [label=\"\", shape=point];\n", indent, clusterStr(sr.State, false, true)))
 		}
 		for _, substate := range sr.Substates {
-			sb.WriteString(g.formatOneState(substate, level+1))
+			g.formatOneState(sb, substate, level+1)
 		}
 		sb.WriteString(indent + "}\n")
 	}
-	return sb.String()
 }
 
 func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
@@ -110,9 +108,7 @@ func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	return actions
 }
 
-func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentation) string {
-	var sb strings.Builder
-
+func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine, sr *stateRepresentation) {
 	triggerList := make([]triggerBehaviour, 0, len(sr.TriggerBehaviours))
 	for _, triggers := range sr.TriggerBehaviours {
 		triggerList = append(triggerList, triggers...)
@@ -137,25 +133,25 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], g.formatOneTransition(t.Trigger, nil, t.Guard))
+			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, nil, t.Guard))
 		case *reentryTriggerBehaviour:
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, t.Destination}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], g.formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
 		case *internalTriggerBehaviour:
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, sr.State}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], g.formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
 		case *transitioningTriggerBehaviour:
 			src := sm.stateConfig[sr.State]
 			if src == nil {
-				return ""
+				continue
 			}
 			dest := sm.stateConfig[t.Destination]
 			var actions []string
@@ -172,7 +168,7 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], g.formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
 		case *dynamicTriggerBehaviour:
 			// TODO: not supported yet
 		}
@@ -180,13 +176,11 @@ func (g *graph) formatAllStateTransitions(sm *StateMachine, sr *stateRepresentat
 
 	for _, ln := range order {
 		content := lines[ln]
-		sb.WriteString(g.formatOneLine(str(ln.source, true), str(ln.destination, true), strings.Join(content, "\\n")))
+		formatOneLine(sb, str(ln.source, true), str(ln.destination, true), strings.Join(content, "\\n"))
 	}
-
-	return sb.String()
 }
 
-func (g *graph) formatOneTransition(trigger Trigger, actions []string, guards transitionGuard) string {
+func formatOneTransition(trigger Trigger, actions []string, guards transitionGuard) string {
 	var sb strings.Builder
 	sb.WriteString(str(trigger, false))
 	if len(actions) > 0 {
@@ -202,11 +196,9 @@ func (g *graph) formatOneTransition(trigger Trigger, actions []string, guards tr
 	return sb.String()
 }
 
-func (g *graph) formatOneLine(fromNodeName, toNodeName, label string) string {
-	var sb strings.Builder
+func formatOneLine(sb *strings.Builder, fromNodeName, toNodeName, label string) {
 	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
 	sb.WriteString("];\n")
-	return sb.String()
 }
 
 func clusterStr(state any, quote, init bool) string {

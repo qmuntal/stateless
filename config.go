@@ -45,7 +45,7 @@ func (sc *StateConfiguration) Machine() *StateMachine {
 	return sc.sm
 }
 
-// InitialTransition adds internal transition to this state.
+// InitialTransition adds an initial transition to this state.
 // When entering the current state the state machine will look for an initial transition,
 // and enter the target state.
 func (sc *StateConfiguration) InitialTransition(targetState State) *StateConfiguration {

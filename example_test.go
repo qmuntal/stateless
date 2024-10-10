@@ -3,9 +3,8 @@ package stateless_test
 import (
 	"context"
 	"fmt"
-	"reflect"
-
 	"github.com/qmuntal/stateless"
+	"reflect"
 )
 
 const (
@@ -29,7 +28,7 @@ const (
 )
 
 func Example() {
-	phoneCall := stateless.NewStateMachine(stateOffHook)
+	phoneCall := stateless.NewStateMachine[string, string, stateless.Args](stateOffHook)
 	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
 	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
@@ -37,7 +36,7 @@ func Example() {
 		Permit(triggerCallDialed, stateRinging)
 
 	phoneCall.Configure(stateRinging).
-		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, args stateless.Args) error {
 			onDialed(args[0].(string))
 			return nil
 		}).
@@ -45,19 +44,19 @@ func Example() {
 
 	phoneCall.Configure(stateConnected).
 		OnEntry(startCallTimer).
-		OnExit(func(_ context.Context, _ ...any) error {
+		OnExit(func(_ context.Context, args stateless.Args) error {
 			stopCallTimer()
 			return nil
 		}).
-		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...any) error {
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ stateless.Args) error {
 			onMute()
 			return nil
 		}).
-		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...any) error {
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ stateless.Args) error {
 			onUnmute()
 			return nil
 		}).
-		InternalTransition(triggerSetVolume, func(_ context.Context, args ...any) error {
+		InternalTransition(triggerSetVolume, func(_ context.Context, args stateless.Args) error {
 			onSetVolume(args[0].(int))
 			return nil
 		}).
@@ -66,7 +65,7 @@ func Example() {
 
 	phoneCall.Configure(stateOnHold).
 		SubstateOf(stateConnected).
-		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, args ...any) error {
+		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, _ stateless.Args) error {
 			onWasted()
 			return nil
 		}).
@@ -75,16 +74,16 @@ func Example() {
 
 	phoneCall.ToGraph()
 
-	phoneCall.Fire(triggerCallDialed, "qmuntal")
-	phoneCall.Fire(triggerCallConnected)
-	phoneCall.Fire(triggerSetVolume, 2)
-	phoneCall.Fire(triggerPlacedOnHold)
-	phoneCall.Fire(triggerMuteMicrophone)
-	phoneCall.Fire(triggerUnmuteMicrophone)
-	phoneCall.Fire(triggerTakenOffHold)
-	phoneCall.Fire(triggerSetVolume, 11)
-	phoneCall.Fire(triggerPlacedOnHold)
-	phoneCall.Fire(triggerPhoneHurledAgainstWall)
+	phoneCall.Fire(triggerCallDialed, stateless.Args{"qmuntal"})
+	phoneCall.Fire(triggerCallConnected, nil)
+	phoneCall.Fire(triggerSetVolume, stateless.Args{2})
+	phoneCall.Fire(triggerPlacedOnHold, nil)
+	phoneCall.Fire(triggerMuteMicrophone, nil)
+	phoneCall.Fire(triggerUnmuteMicrophone, nil)
+	phoneCall.Fire(triggerTakenOffHold, nil)
+	phoneCall.Fire(triggerSetVolume, stateless.Args{11})
+	phoneCall.Fire(triggerPlacedOnHold, nil)
+	phoneCall.Fire(triggerPhoneHurledAgainstWall, nil)
 	fmt.Printf("State is %v\n", phoneCall.MustState())
 
 	// Output:
@@ -120,7 +119,7 @@ func onWasted() {
 	fmt.Println("Wasted!")
 }
 
-func startCallTimer(_ context.Context, _ ...any) error {
+func startCallTimer(_ context.Context, _ stateless.Args) error {
 	fmt.Println("[Timer:] Call started at 11:00am")
 	return nil
 }

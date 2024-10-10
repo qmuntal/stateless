@@ -15,20 +15,20 @@ import (
 
 var update = flag.Bool("update", false, "update golden files on failure")
 
-func emptyWithInitial() *stateless.StateMachine {
-	return stateless.NewStateMachine("A")
+func emptyWithInitial() *stateless.StateMachine[string, string, stateless.Args] {
+	return stateless.NewStateMachine[string, string, stateless.Args]("A")
 }
 
-func withSubstate() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("B")
+func withSubstate() *stateless.StateMachine[string, string, stateless.Args] {
+	sm := stateless.NewStateMachine[string, string, stateless.Args]("B")
 	sm.Configure("A").Permit("Z", "B")
 	sm.Configure("B").SubstateOf("C").Permit("X", "A")
 	sm.Configure("C").Permit("Y", "A").Ignore("X")
 	return sm
 }
 
-func withInitialState() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("A")
+func withInitialState() *stateless.StateMachine[string, string, stateless.Args] {
+	sm := stateless.NewStateMachine[string, string, stateless.Args]("A")
 	sm.Configure("A").
 		Permit("X", "B")
 	sm.Configure("B").
@@ -41,28 +41,28 @@ func withInitialState() *stateless.StateMachine {
 	return sm
 }
 
-func withGuards() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("B")
-	sm.SetTriggerParameters("X", reflect.TypeOf(0))
+func withGuards() *stateless.StateMachine[string, string, stateless.Args] {
+	sm := stateless.NewStateMachine[string, string, stateless.Args]("B")
+	//sm.SetTriggerParameters("X", reflect.TypeOf(0))
 	sm.Configure("A").
-		Permit("X", "D", func(_ context.Context, args ...any) bool {
+		Permit("X", "D", func(_ context.Context, args stateless.Args) bool {
 			return args[0].(int) == 3
 		})
 
 	sm.Configure("B").
 		SubstateOf("A").
-		Permit("X", "C", func(_ context.Context, args ...any) bool {
+		Permit("X", "C", func(_ context.Context, args stateless.Args) bool {
 			return args[0].(int) == 2
 		})
 	return sm
 }
 
-func œ(_ context.Context, args ...any) bool {
+func œ(_ context.Context, args stateless.Args) bool {
 	return args[0].(int) == 2
 }
 
-func withUnicodeNames() *stateless.StateMachine {
-	sm := stateless.NewStateMachine("Ĕ")
+func withUnicodeNames() *stateless.StateMachine[string, string, stateless.Args] {
+	sm := stateless.NewStateMachine[string, string, stateless.Args]("Ĕ")
 	sm.Configure("Ĕ").
 		Permit("◵", "ų", œ)
 	sm.Configure("ų").
@@ -79,32 +79,32 @@ func withUnicodeNames() *stateless.StateMachine {
 	return sm
 }
 
-func phoneCall() *stateless.StateMachine {
-	phoneCall := stateless.NewStateMachine(stateOffHook)
-	phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
-	phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
+func phoneCall() *stateless.StateMachine[string, string, stateless.Args] {
+	phoneCall := stateless.NewStateMachine[string, string, stateless.Args](stateOffHook)
+	//phoneCall.SetTriggerParameters(triggerSetVolume, reflect.TypeOf(0))
+	//phoneCall.SetTriggerParameters(triggerCallDialed, reflect.TypeOf(""))
 
 	phoneCall.Configure(stateOffHook).
 		Permit(triggerCallDialed, stateRinging)
 
 	phoneCall.Configure(stateRinging).
-		OnEntryFrom(triggerCallDialed, func(_ context.Context, args ...any) error {
+		OnEntryFrom(triggerCallDialed, func(_ context.Context, _ stateless.Args) error {
 			return nil
 		}).
 		Permit(triggerCallConnected, stateConnected)
 
 	phoneCall.Configure(stateConnected).
 		OnEntry(startCallTimer).
-		OnExit(func(_ context.Context, _ ...any) error {
+		OnExit(func(_ context.Context, _ stateless.Args) error {
 			return nil
 		}).
-		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ ...any) error {
+		InternalTransition(triggerMuteMicrophone, func(_ context.Context, _ stateless.Args) error {
 			return nil
 		}).
-		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ ...any) error {
+		InternalTransition(triggerUnmuteMicrophone, func(_ context.Context, _ stateless.Args) error {
 			return nil
 		}).
-		InternalTransition(triggerSetVolume, func(_ context.Context, args ...any) error {
+		InternalTransition(triggerSetVolume, func(_ context.Context, args stateless.Args) error {
 			return nil
 		}).
 		Permit(triggerLeftMessage, stateOffHook).
@@ -112,7 +112,7 @@ func phoneCall() *stateless.StateMachine {
 
 	phoneCall.Configure(stateOnHold).
 		SubstateOf(stateConnected).
-		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, args ...any) error {
+		OnExitWith(triggerPhoneHurledAgainstWall, func(ctx context.Context, _ stateless.Args) error {
 			onWasted()
 			return nil
 		}).
@@ -123,7 +123,7 @@ func phoneCall() *stateless.StateMachine {
 }
 
 func TestStateMachine_ToGraph(t *testing.T) {
-	tests := []func() *stateless.StateMachine{
+	tests := []func() *stateless.StateMachine[string, string, stateless.Args]{
 		emptyWithInitial,
 		withSubstate,
 		withInitialState,

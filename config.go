@@ -3,6 +3,7 @@ package stateless
 import (
 	"context"
 	"fmt"
+	"reflect"
 )
 
 type transitionKey struct{}
@@ -18,37 +19,50 @@ func GetTransition[S State, T Trigger](ctx context.Context) Transition[S, T] {
 	return tr
 }
 
+// Args is a generic list of arguments.
+type Args []any
+
+func (a Args) Len() int {
+	return len(a)
+}
+
+func (a Args) TypeOf(i int) reflect.Type {
+	return reflect.TypeOf(a[i])
+}
+
+var _ Validatable = Args{} // Ensure Args implements Validatable
+
 // ActionFunc describes a generic action function.
 // The context will always contain Transition information.
-type ActionFunc = func(ctx context.Context, args ...any) error
+type ActionFunc[A any] func(ctx context.Context, arg A) error
 
 // GuardFunc defines a generic guard function.
-type GuardFunc = func(ctx context.Context, args ...any) bool
+type GuardFunc[A any] func(ctx context.Context, arg A) bool
 
 // DestinationSelectorFunc defines a functions that is called to select a dynamic destination.
-type DestinationSelectorFunc[S State] func(ctx context.Context, args ...any) (S, error)
+type DestinationSelectorFunc[S State, A any] func(ctx context.Context, arg A) (S, error)
 
 // StateConfiguration is the configuration for a single state value.
-type StateConfiguration[S State, T Trigger] struct {
-	sm     *StateMachine[S, T]
-	sr     *stateRepresentation[S, T]
-	lookup func(S) *stateRepresentation[S, T]
+type StateConfiguration[S State, T Trigger, A any] struct {
+	sm     *StateMachine[S, T, A]
+	sr     *stateRepresentation[S, T, A]
+	lookup func(S) *stateRepresentation[S, T, A]
 }
 
 // State is configured with this configuration.
-func (sc *StateConfiguration[S, T]) State() S {
+func (sc *StateConfiguration[S, T, _]) State() S {
 	return sc.sr.State
 }
 
 // Machine that is configured with this configuration.
-func (sc *StateConfiguration[S, T]) Machine() *StateMachine[S, T] {
+func (sc *StateConfiguration[S, T, A]) Machine() *StateMachine[S, T, A] {
 	return sc.sm
 }
 
 // InitialTransition adds an initial transition to this state.
 // When entering the current state the state machine will look for an initial transition,
 // and enter the target state.
-func (sc *StateConfiguration[S, T]) InitialTransition(targetState S) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) InitialTransition(targetState S) *StateConfiguration[S, T, A] {
 	if sc.sr.HasInitialState {
 		panic(fmt.Sprintf("stateless: This state has already been configured with an initial transition (%v).", sc.sr.InitialTransitionTarget))
 	}
@@ -60,12 +74,12 @@ func (sc *StateConfiguration[S, T]) InitialTransition(targetState S) *StateConfi
 }
 
 // Permit accept the specified trigger and transition to the destination state if the guard conditions are met (if any).
-func (sc *StateConfiguration[S, T]) Permit(trigger T, destinationState S, guards ...GuardFunc) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) Permit(trigger T, destinationState S, guards ...GuardFunc[A]) *StateConfiguration[S, T, A] {
 	if destinationState == sc.sr.State {
 		panic("stateless: Permit() require that the destination state is not equal to the source state. To accept a trigger without changing state, use either Ignore() or PermitReentry().")
 	}
-	sc.sr.AddTriggerBehaviour(&transitioningTriggerBehaviour[S, T]{
-		baseTriggerBehaviour: baseTriggerBehaviour[T]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+	sc.sr.AddTriggerBehaviour(&transitioningTriggerBehaviour[S, T, A]{
+		baseTriggerBehaviour: baseTriggerBehaviour[T, A]{Trigger: trigger, Guard: newtransitionGuard[A](guards...)},
 		Destination:          destinationState,
 	})
 	return sc
@@ -73,9 +87,9 @@ func (sc *StateConfiguration[S, T]) Permit(trigger T, destinationState S, guards
 
 // InternalTransition add an internal transition to the state machine.
 // An internal action does not cause the Exit and Entry actions to be triggered, and does not change the state of the state machine.
-func (sc *StateConfiguration[S, T]) InternalTransition(trigger T, action ActionFunc, guards ...GuardFunc) *StateConfiguration[S, T] {
-	sc.sr.AddTriggerBehaviour(&internalTriggerBehaviour[S, T]{
-		baseTriggerBehaviour: baseTriggerBehaviour[T]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+func (sc *StateConfiguration[S, T, A]) InternalTransition(trigger T, action ActionFunc[A], guards ...GuardFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.AddTriggerBehaviour(&internalTriggerBehaviour[S, T, A]{
+		baseTriggerBehaviour: baseTriggerBehaviour[T, A]{Trigger: trigger, Guard: newtransitionGuard[A](guards...)},
 		Action:               action,
 	})
 	return sc
@@ -85,37 +99,37 @@ func (sc *StateConfiguration[S, T]) InternalTransition(trigger T, action ActionF
 // Reentry behaves as though the configured state transitions to an identical sibling state.
 // Applies to the current state only. Will not re-execute superstate actions, or
 // cause actions to execute transitioning between super- and sub-states.
-func (sc *StateConfiguration[S, T]) PermitReentry(trigger T, guards ...GuardFunc) *StateConfiguration[S, T] {
-	sc.sr.AddTriggerBehaviour(&reentryTriggerBehaviour[S, T]{
-		baseTriggerBehaviour: baseTriggerBehaviour[T]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+func (sc *StateConfiguration[S, T, A]) PermitReentry(trigger T, guards ...GuardFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.AddTriggerBehaviour(&reentryTriggerBehaviour[S, T, A]{
+		baseTriggerBehaviour: baseTriggerBehaviour[T, A]{Trigger: trigger, Guard: newtransitionGuard[A](guards...)},
 		Destination:          sc.sr.State,
 	})
 	return sc
 }
 
 // Ignore the specified trigger when in the configured state, if the guards return true.
-func (sc *StateConfiguration[S, T]) Ignore(trigger T, guards ...GuardFunc) *StateConfiguration[S, T] {
-	sc.sr.AddTriggerBehaviour(&ignoredTriggerBehaviour[T]{
-		baseTriggerBehaviour: baseTriggerBehaviour[T]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+func (sc *StateConfiguration[S, T, A]) Ignore(trigger T, guards ...GuardFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.AddTriggerBehaviour(&ignoredTriggerBehaviour[T, A]{
+		baseTriggerBehaviour: baseTriggerBehaviour[T, A]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
 	})
 	return sc
 }
 
 // PermitDynamic accept the specified trigger and transition to the destination state, calculated dynamically by the supplied function.
-func (sc *StateConfiguration[S, T]) PermitDynamic(trigger T, selector DestinationSelectorFunc[S], guards ...GuardFunc) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) PermitDynamic(trigger T, selector DestinationSelectorFunc[S, A], guards ...GuardFunc[A]) *StateConfiguration[S, T, A] {
 	guardDescriptors := make([]invocationInfo, len(guards))
 	for i, guard := range guards {
 		guardDescriptors[i] = newinvocationInfo(guard)
 	}
-	sc.sr.AddTriggerBehaviour(&dynamicTriggerBehaviour[S, T]{
-		baseTriggerBehaviour: baseTriggerBehaviour[T]{Trigger: trigger, Guard: newtransitionGuard(guards...)},
+	sc.sr.AddTriggerBehaviour(&dynamicTriggerBehaviour[S, T, A]{
+		baseTriggerBehaviour: baseTriggerBehaviour[T, A]{Trigger: trigger, Guard: newtransitionGuard[A](guards...)},
 		Destination:          selector,
 	})
 	return sc
 }
 
 // OnActive specify an action that will execute when activating the configured state.
-func (sc *StateConfiguration[S, T]) OnActive(action func(context.Context) error) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) OnActive(action func(context.Context) error) *StateConfiguration[S, T, A] {
 	sc.sr.ActivateActions = append(sc.sr.ActivateActions, actionBehaviourSteady{
 		Action:      action,
 		Description: newinvocationInfo(action),
@@ -124,7 +138,7 @@ func (sc *StateConfiguration[S, T]) OnActive(action func(context.Context) error)
 }
 
 // OnDeactivate specify an action that will execute when deactivating the configured state.
-func (sc *StateConfiguration[S, T]) OnDeactivate(action func(context.Context) error) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) OnDeactivate(action func(context.Context) error) *StateConfiguration[S, T, A] {
 	sc.sr.DeactivateActions = append(sc.sr.DeactivateActions, actionBehaviourSteady{
 		Action:      action,
 		Description: newinvocationInfo(action),
@@ -133,8 +147,8 @@ func (sc *StateConfiguration[S, T]) OnDeactivate(action func(context.Context) er
 }
 
 // OnEntry specify an action that will execute when transitioning into the configured state.
-func (sc *StateConfiguration[S, T]) OnEntry(action ActionFunc) *StateConfiguration[S, T] {
-	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour[S, T]{
+func (sc *StateConfiguration[S, T, A]) OnEntry(action ActionFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour[S, T, A]{
 		Action:      action,
 		Description: newinvocationInfo(action),
 	})
@@ -142,8 +156,8 @@ func (sc *StateConfiguration[S, T]) OnEntry(action ActionFunc) *StateConfigurati
 }
 
 // OnEntryFrom Specify an action that will execute when transitioning into the configured state from a specific trigger.
-func (sc *StateConfiguration[S, T]) OnEntryFrom(trigger T, action ActionFunc) *StateConfiguration[S, T] {
-	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour[S, T]{
+func (sc *StateConfiguration[S, T, A]) OnEntryFrom(trigger T, action ActionFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.EntryActions = append(sc.sr.EntryActions, actionBehaviour[S, T, A]{
 		Action:      action,
 		Description: newinvocationInfo(action),
 		Trigger:     &trigger,
@@ -152,8 +166,8 @@ func (sc *StateConfiguration[S, T]) OnEntryFrom(trigger T, action ActionFunc) *S
 }
 
 // OnExit specify an action that will execute when transitioning from the configured state.
-func (sc *StateConfiguration[S, T]) OnExit(action ActionFunc) *StateConfiguration[S, T] {
-	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour[S, T]{
+func (sc *StateConfiguration[S, T, A]) OnExit(action ActionFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour[S, T, A]{
 		Action:      action,
 		Description: newinvocationInfo(action),
 	})
@@ -161,8 +175,8 @@ func (sc *StateConfiguration[S, T]) OnExit(action ActionFunc) *StateConfiguratio
 }
 
 // OnExitWith specifies an action that will execute when transitioning from the configured state with a specific trigger.
-func (sc *StateConfiguration[S, T]) OnExitWith(trigger T, action ActionFunc) *StateConfiguration[S, T] {
-	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour[S, T]{
+func (sc *StateConfiguration[S, T, A]) OnExitWith(trigger T, action ActionFunc[A]) *StateConfiguration[S, T, A] {
+	sc.sr.ExitActions = append(sc.sr.ExitActions, actionBehaviour[S, T, A]{
 		Action:      action,
 		Description: newinvocationInfo(action),
 		Trigger:     &trigger,
@@ -176,7 +190,7 @@ func (sc *StateConfiguration[S, T]) OnExitWith(trigger T, action ActionFunc) *St
 // entry actions for the superstate are executed.
 // Likewise when leaving from the substate to outside the supserstate,
 // exit actions for the superstate will execute.
-func (sc *StateConfiguration[S, T]) SubstateOf(superstate S) *StateConfiguration[S, T] {
+func (sc *StateConfiguration[S, T, A]) SubstateOf(superstate S) *StateConfiguration[S, T, A] {
 	state := sc.sr.State
 	// Check for accidental identical cyclic configuration
 	if state == superstate {

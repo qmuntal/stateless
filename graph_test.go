@@ -139,6 +139,7 @@ func TestStateMachine_ToGraph(t *testing.T) {
 			got := fn().ToGraph()
 			name := "testdata/golden/" + name + ".dot"
 			want, err := os.ReadFile(name)
+			want = bytes.ReplaceAll(want, []byte("\r\n"), []byte("\n"))
 			if *update {
 				if !bytes.Equal([]byte(got), want) {
 					os.WriteFile(name, []byte(got), 0666)
@@ -147,7 +148,18 @@ func TestStateMachine_ToGraph(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				if !bytes.Equal([]byte(got), want) {
+					t.Fatalf("got:\n%swant:\n%s", got, want)
+				}
 			}
 		})
+	}
+}
+
+func BenchmarkToGraph(b *testing.B) {
+	sm := phoneCall()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = sm.ToGraph()
 	}
 }

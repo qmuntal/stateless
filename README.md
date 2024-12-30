@@ -112,6 +112,19 @@ machine := stateless.NewStateMachineWithExternalStorage(func(_ context.Context) 
 
 In this example the state machine will use the `myState` object for state storage.
 
+This can further be extended to support more complex scenarios, such as when not only the current state is required but also the arguments which were supplied to that state. This can be useful when using error states that additional metadata can be stored or acted upon via callbacks.
+
+```go
+machine := stateless.NewStateMachineWithExternalStorageAndArgs(func(_ context.Context) (stateless.State, []any, error) {
+  return myState.Value, myState.Args, nil
+}, func(_ context.Context, state stateless.State, args ...any) error {
+  myState.Value = state
+  myState.Args = args
+  return nil
+}, stateless.FiringQueued)
+```
+
+
 ### Activation / Deactivation
 
 It might be necessary to perform some code before storing the object state, and likewise when restoring the object state. Use `Deactivate` and `Activate` for this. Activation should only be called once before normal operation starts, and once before state storage.

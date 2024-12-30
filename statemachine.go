@@ -64,8 +64,8 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation
 	triggerConfig          map[Trigger]triggerWithParameters
-	stateAccessor          func(context.Context) (State, error)
-	stateMutator           func(context.Context, State) error
+	stateAccessor          func(context.Context) (State, []any, error)
+	stateMutator           func(context.Context, State, ...any) error
 	unhandledTriggerAction UnhandledTriggerActionFunc
 	onTransitioningEvents  []TransitionFunc
 	onTransitionedEvents   []TransitionFunc
@@ -98,16 +98,18 @@ func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMa
 	sm := newStateMachine(firingMode)
 	reference := &struct {
 		State State
+		Args  []any
 	}{State: initialState}
-	sm.stateAccessor = func(_ context.Context) (State, error) {
+	sm.stateAccessor = func(_ context.Context) (State, []any, error) {
 		stateMutex.Lock()
 		defer stateMutex.Unlock()
-		return reference.State, nil
+		return reference.State, nil, nil
 	}
-	sm.stateMutator = func(_ context.Context, state State) error {
+	sm.stateMutator = func(_ context.Context, state State, args ...any) error {
 		stateMutex.Lock()
 		defer stateMutex.Unlock()
 		reference.State = state
+		reference.Args = args
 		return nil
 	}
 	return sm
@@ -115,6 +117,19 @@ func NewStateMachineWithMode(initialState State, firingMode FiringMode) *StateMa
 
 // NewStateMachineWithExternalStorage returns a state machine with external state storage.
 func NewStateMachineWithExternalStorage(stateAccessor func(context.Context) (State, error), stateMutator func(context.Context, State) error, firingMode FiringMode) *StateMachine {
+	sm := newStateMachine(firingMode)
+	sm.stateAccessor = func(ctx context.Context) (State, []any, error) {
+		state, err := stateAccessor(ctx)
+		return state, nil, err
+	}
+	sm.stateMutator = func(ctx context.Context, state State, a ...any) error {
+		return stateMutator(ctx, state)
+	}
+	return sm
+}
+
+// NewStateMachineWithExternalStorageAndArgs returns a state machine with external state storage. This version allows for arguments which were passed to the state mutator to be retained.
+func NewStateMachineWithExternalStorageAndArgs(stateAccessor func(context.Context) (State, []any, error), stateMutator func(context.Context, State, ...any) error, firingMode FiringMode) *StateMachine {
 	sm := newStateMachine(firingMode)
 	sm.stateAccessor = stateAccessor
 	sm.stateMutator = stateMutator
@@ -129,6 +144,12 @@ func (sm *StateMachine) ToGraph() string {
 
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
+	state, _, err := sm.StateWithArgs(ctx)
+	return state, err
+}
+
+// StateWithArgs returns the current state and the arguments passed to the state mutator.
+func (sm *StateMachine) StateWithArgs(ctx context.Context) (State, []any, error) {
 	return sm.stateAccessor(ctx)
 }
 
@@ -142,6 +163,18 @@ func (sm *StateMachine) MustState() State {
 		panic(err)
 	}
 	return st
+}
+
+// MustStateWithArgs returns the current state and the arguments passed to the state mutator without the error.
+// It is safe to use this method when used together with NewStateMachine
+// or when using NewStateMachineWithExternalStorage with an state accessor that
+// does not return an error.
+func (sm *StateMachine) MustStateWithArgs() (State, []any) {
+	st, args, err := sm.StateWithArgs(context.Background())
+	if err != nil {
+		panic(err)
+	}
+	return st, args
 }
 
 // PermittedTriggers see PermittedTriggersCtx.
@@ -291,8 +324,8 @@ func (sm *StateMachine) String() string {
 	return fmt.Sprintf("StateMachine {{ State = %v, PermittedTriggers = %v }}", state, triggers)
 }
 
-func (sm *StateMachine) setState(ctx context.Context, state State) error {
-	return sm.stateMutator(ctx, state)
+func (sm *StateMachine) setState(ctx context.Context, state State, args ...any) error {
+	return sm.stateMutator(ctx, state, args...)
 }
 
 func (sm *StateMachine) currentState(ctx context.Context) (*stateRepresentation, error) {
@@ -387,7 +420,7 @@ func (sm *StateMachine) handleReentryTrigger(ctx context.Context, sr *stateRepre
 	if err != nil {
 		return err
 	}
-	if err := sm.setState(ctx, rep.State); err != nil {
+	if err := sm.setState(ctx, rep.State, args...); err != nil {
 		return err
 	}
 	callEvents(sm.onTransitionedEvents, ctx, transition)
@@ -399,7 +432,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 		return err
 	}
 	callEvents(sm.onTransitioningEvents, ctx, transition)
-	if err := sm.setState(ctx, transition.Destination); err != nil {
+	if err := sm.setState(ctx, transition.Destination, args...); err != nil {
 		return err
 	}
 	newSr := sm.stateRepresentation(transition.Destination)
@@ -409,7 +442,7 @@ func (sm *StateMachine) handleTransitioningTrigger(ctx context.Context, sr *stat
 	}
 	// Check if state has changed by entering new state (by firing triggers in OnEntry or such)
 	if rep.State != newSr.State {
-		if err := sm.setState(ctx, rep.State); err != nil {
+		if err := sm.setState(ctx, rep.State, args...); err != nil {
 			return err
 		}
 	}

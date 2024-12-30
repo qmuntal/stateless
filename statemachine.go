@@ -148,14 +148,14 @@ func (sm *StateMachine) State(ctx context.Context) (State, error) {
 	return state, err
 }
 
-// StateWithArgs returns the current state and the arguments passed to the state mutator.
+// StateWithArgs returns the current state and any arguments which were passed when the state was entered.
 func (sm *StateMachine) StateWithArgs(ctx context.Context) (State, []any, error) {
 	return sm.stateAccessor(ctx)
 }
 
 // MustState returns the current state without the error.
 // It is safe to use this method when used together with NewStateMachine
-// or when using NewStateMachineWithExternalStorage with an state accessor that
+// or when using NewStateMachineWithExternalStorage / NewStateMachineWithExternalStorageAndArgs with a state accessor that
 // does not return an error.
 func (sm *StateMachine) MustState() State {
 	st, err := sm.State(context.Background())
@@ -167,7 +167,7 @@ func (sm *StateMachine) MustState() State {
 
 // MustStateWithArgs returns the current state and the arguments passed to the state mutator without the error.
 // It is safe to use this method when used together with NewStateMachine
-// or when using NewStateMachineWithExternalStorage with an state accessor that
+// or when using NewStateMachineWithExternalStorage / NewStateMachineWithExternalStorageAndArgs with a state accessor that
 // does not return an error.
 func (sm *StateMachine) MustStateWithArgs() (State, []any) {
 	st, args, err := sm.StateWithArgs(context.Background())

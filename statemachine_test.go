@@ -88,9 +88,6 @@ func TestStateMachine_NewStateMachineWithExternalStorageAndArgs(t *testing.T) {
 	if state != stateB {
 		t.Errorf("expected state to be %v, got %v", stateB, state)
 	}
-	if state, args := sm.MustStateWithArgs(); state != stateB || !reflect.DeepEqual(args, []any{"test1", errors.New("test1")}) {
-		t.Errorf("MustStateWithArgs() = %v, want %v", args, []any{"test1", errors.New("test1")})
-	}
 
 	sm.Fire(triggerX, "test2", errors.New("test2"))
 	if got := sm.MustState(); got != stateC {
@@ -99,8 +96,13 @@ func TestStateMachine_NewStateMachineWithExternalStorageAndArgs(t *testing.T) {
 	if state != stateC {
 		t.Errorf("expected state to be %v, got %v", stateC, state)
 	}
-	if state, args := sm.MustStateWithArgs(); state != stateC || !reflect.DeepEqual(args, []any{"test2", errors.New("test2")}) {
-		t.Errorf("MustStateWithArgs() = %v, want %v", args, []any{"test2", errors.New("test2")})
+
+	// ensure that the state has been updated
+	if got := args[0].(string); got != "test2" {
+		t.Errorf("expected arg 0 to be %v, got %v", "test2", got)
+	}
+	if got := args[1].(error).Error(); got != "test2" {
+		t.Errorf("expected arg 1 to be %v, got %v", "test2", got)
 	}
 }
 

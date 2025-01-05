@@ -144,13 +144,8 @@ func (sm *StateMachine) ToGraph() string {
 
 // State returns the current state.
 func (sm *StateMachine) State(ctx context.Context) (State, error) {
-	state, _, err := sm.StateWithArgs(ctx)
+	state, _, err := sm.stateAccessor(ctx)
 	return state, err
-}
-
-// StateWithArgs returns the current state and any arguments which were passed when the state was entered.
-func (sm *StateMachine) StateWithArgs(ctx context.Context) (State, []any, error) {
-	return sm.stateAccessor(ctx)
 }
 
 // MustState returns the current state without the error.
@@ -163,18 +158,6 @@ func (sm *StateMachine) MustState() State {
 		panic(err)
 	}
 	return st
-}
-
-// MustStateWithArgs returns the current state and the arguments passed to the state mutator without the error.
-// It is safe to use this method when used together with NewStateMachine
-// or when using NewStateMachineWithExternalStorage / NewStateMachineWithExternalStorageAndArgs with a state accessor that
-// does not return an error.
-func (sm *StateMachine) MustStateWithArgs() (State, []any) {
-	st, args, err := sm.StateWithArgs(context.Background())
-	if err != nil {
-		panic(err)
-	}
-	return st, args
 }
 
 // PermittedTriggers see PermittedTriggersCtx.

@@ -69,6 +69,43 @@ func TestStateMachine_NewStateMachineWithExternalStorage(t *testing.T) {
 	}
 }
 
+func TestStateMachine_NewStateMachineWithExternalStorageAndArgs(t *testing.T) {
+	var state State = stateB
+	var args = []any{"test1", errors.New("test1")}
+	sm := NewStateMachineWithExternalStorageAndArgs(func(_ context.Context) (State, []any, error) {
+		return state, args, nil
+	}, func(_ context.Context, s State, a ...any) error {
+		state = s
+		args = a
+		return nil
+	}, FiringImmediate)
+	sm.Configure(stateB).Permit(triggerX, stateC)
+
+	// test both existing calls and new calls since there's wrapping involved
+	if got := sm.MustState(); got != stateB {
+		t.Errorf("MustState() = %v, want %v", got, stateB)
+	}
+	if state != stateB {
+		t.Errorf("expected state to be %v, got %v", stateB, state)
+	}
+
+	sm.Fire(triggerX, "test2", errors.New("test2"))
+	if got := sm.MustState(); got != stateC {
+		t.Errorf("MustState() = %v, want %v", got, stateC)
+	}
+	if state != stateC {
+		t.Errorf("expected state to be %v, got %v", stateC, state)
+	}
+
+	// ensure that the state has been updated
+	if got := args[0].(string); got != "test2" {
+		t.Errorf("expected arg 0 to be %v, got %v", "test2", got)
+	}
+	if got := args[1].(error).Error(); got != "test2" {
+		t.Errorf("expected arg 1 to be %v, got %v", "test2", got)
+	}
+}
+
 func TestStateMachine_Configure_SubstateIsIncludedInCurrentState(t *testing.T) {
 	sm := NewStateMachine(stateB)
 	sm.Configure(stateB).SubstateOf(stateC)

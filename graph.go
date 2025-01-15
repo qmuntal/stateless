@@ -64,7 +64,9 @@ func (g *graph) formatActions(sr *stateRepresentation) string {
 		}
 	}
 	for _, act := range sr.ExitActions {
-		es = append(es, fmt.Sprintf("exit / %s", esc(act.Description.String(), false)))
+		if act.Trigger == nil {
+			es = append(es, fmt.Sprintf("exit / %s", esc(act.Description.String(), false)))
+		}
 	}
 	return strings.Join(es, "\\n")
 }
@@ -98,7 +100,7 @@ func (g *graph) formatOneState(sb *strings.Builder, sr *stateRepresentation, lev
 	}
 }
 
-func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
+func (g *graph) getActions(ab []actionBehaviour, t Trigger) []string {
 	var actions []string
 	for _, ea := range ab {
 		if ea.Trigger != nil && *ea.Trigger == t {
@@ -135,14 +137,14 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 			}
 			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, nil, t.Guard))
 		case *reentryTriggerBehaviour:
-			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+			actions := g.getActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, t.Destination}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
 			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
 		case *internalTriggerBehaviour:
-			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
+			actions := g.getActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, sr.State}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
@@ -153,10 +155,12 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 			if src == nil {
 				continue
 			}
-			dest := sm.stateConfig[t.Destination]
 			var actions []string
+			actions = g.getActions(sr.ExitActions, t.Trigger)
+			dest := sm.stateConfig[t.Destination]
 			if dest != nil {
-				actions = g.getEntryActions(dest.EntryActions, t.Trigger)
+				entryActions := g.getActions(dest.EntryActions, t.Trigger)
+				actions = append(actions, entryActions...)
 			}
 			var destState State
 			if dest == nil {

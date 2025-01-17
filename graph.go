@@ -3,6 +3,7 @@ package stateless
 import (
 	"context"
 	"fmt"
+	"html"
 	"sort"
 	"strings"
 	"text/template"
@@ -10,6 +11,13 @@ import (
 )
 
 type graph struct {
+}
+
+type transitionLabel struct {
+	reentry       []string
+	internal      []string
+	transitioning []string
+	ignored       []string
 }
 
 func (g *graph) formatStateMachine(sm *StateMachine) string {
@@ -34,7 +42,7 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 			dest := sm.stateConfig[sr.InitialTransitionTarget]
 			if dest != nil {
 				src := clusterStr(sr.State, true, true)
-				formatOneLine(&sb, src, str(dest.State, true), "")
+				formatOneLine(&sb, src, str(dest.State, true), `""`)
 			}
 		}
 	}
@@ -126,7 +134,7 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 		destination State
 	}
 
-	lines := make(map[line][]string, len(triggerList))
+	lines := make(map[line]transitionLabel, len(triggerList))
 	order := make([]line, 0, len(triggerList))
 	for _, trigger := range triggerList {
 		switch t := trigger.(type) {
@@ -135,21 +143,27 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, nil, t.Guard))
+			transition := lines[ln]
+			transition.ignored = append(transition.ignored, formatOneTransition(t.Trigger, nil, t.Guard))
+			lines[ln] = transition
 		case *reentryTriggerBehaviour:
 			actions := g.getActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, t.Destination}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
+			transition := lines[ln]
+			transition.reentry = append(transition.reentry, formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = transition
 		case *internalTriggerBehaviour:
 			actions := g.getActions(sr.EntryActions, t.Trigger)
 			ln := line{sr.State, sr.State}
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
+			transition := lines[ln]
+			transition.internal = append(transition.internal, formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = transition
 		case *transitioningTriggerBehaviour:
 			src := sm.stateConfig[sr.State]
 			if src == nil {
@@ -172,7 +186,9 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 			if _, ok := lines[ln]; !ok {
 				order = append(order, ln)
 			}
-			lines[ln] = append(lines[ln], formatOneTransition(t.Trigger, actions, t.Guard))
+			transition := lines[ln]
+			transition.transitioning = append(transition.transitioning, formatOneTransition(t.Trigger, actions, t.Guard))
+			lines[ln] = transition
 		case *dynamicTriggerBehaviour:
 			// TODO: not supported yet
 		}
@@ -180,8 +196,44 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 
 	for _, ln := range order {
 		content := lines[ln]
-		formatOneLine(sb, str(ln.source, true), str(ln.destination, true), strings.Join(content, "\\n"))
+		formatOneLine(sb, str(ln.source, true), str(ln.destination, true), toTransitionsLabel(content))
 	}
+}
+
+func toTransitionsLabel(transitions transitionLabel) string {
+	var sb strings.Builder
+	sb.WriteString(`<<TABLE BORDER="0">`)
+	for _, t := range transitions.transitioning {
+		sb.WriteString(`<TR><TD ALIGN="LEFT">`)
+		sb.WriteString(html.EscapeString(t))
+		sb.WriteString(`</TD></TR>`)
+	}
+	if len(transitions.reentry) > 0 {
+		sb.WriteString(`<TR><TD><B>Reentry</B></TD></TR>`)
+		for _, t := range transitions.reentry {
+			sb.WriteString(`<TR><TD ALIGN="LEFT">`)
+			sb.WriteString(html.EscapeString(t))
+			sb.WriteString(`</TD></TR>`)
+		}
+	}
+	if len(transitions.internal) > 0 {
+		sb.WriteString(`<TR><TD><B>Internal</B></TD></TR>`)
+		for _, t := range transitions.internal {
+			sb.WriteString(`<TR><TD ALIGN="LEFT">`)
+			sb.WriteString(html.EscapeString(t))
+			sb.WriteString(`</TD></TR>`)
+		}
+	}
+	if len(transitions.ignored) > 0 {
+		sb.WriteString(`<TR><TD><B>Ignored</B></TD></TR>`)
+		for _, t := range transitions.ignored {
+			sb.WriteString(`<TR><TD ALIGN="LEFT">`)
+			sb.WriteString(html.EscapeString(t))
+			sb.WriteString(`</TD></TR>`)
+		}
+	}
+	sb.WriteString(`</TABLE>>`)
+	return sb.String()
 }
 
 func formatOneTransition(trigger Trigger, actions []string, guards transitionGuard) string {
@@ -201,7 +253,7 @@ func formatOneTransition(trigger Trigger, actions []string, guards transitionGua
 }
 
 func formatOneLine(sb *strings.Builder, fromNodeName, toNodeName, label string) {
-	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=\"%s\"", fromNodeName, toNodeName, label))
+	sb.WriteString(fmt.Sprintf("\t%s -> %s [label=%s", fromNodeName, toNodeName, label))
 	sb.WriteString("];\n")
 }
 

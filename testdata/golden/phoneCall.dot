@@ -7,7 +7,7 @@ digraph {
 	subgraph cluster_Connected {
 		label="Substates of\nConnected";
 		style="dashed";
-		OnHold [label="OnHold|exit / func6"];
+		OnHold [label="OnHold"];
 	}
 	OffHook [label="OffHook"];
 	Ringing [label="Ringing"];
@@ -15,7 +15,7 @@ digraph {
 	Connected -> Connected [label="MuteMicrophone\nSetVolume\nUnmuteMicrophone"];
 	Connected -> OnHold [label="PlacedOnHold"];
 	OffHook -> Ringing [label="CallDialed / func1"];
-	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall"];
+	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall / func6"];
 	OnHold -> Connected [label="TakenOffHold"];
 	Ringing -> Connected [label="CallConnected"];
 	init [label="", shape=point];

@@ -196,7 +196,7 @@ stateMachine.Configure(stateAssigned).
 By default, triggers must be ignored explicitly. To override Stateless's default behaviour of throwing a panic when an unhandled trigger is fired, configure the state machine using the `OnUnhandledTrigger` method:
 
 ```go
-stateMachine.OnUnhandledTrigger( func (_ context.Context, state State, _ Trigger, _ []string) {})
+stateMachine.OnUnhandledTrigger( func (_ context.Context, state State, _ Trigger, _ []string) error { return nil })
 ```
 
 ### Export to DOT graph

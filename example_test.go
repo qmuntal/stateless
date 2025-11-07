@@ -93,6 +93,7 @@ func Example() {
 	// Volume set to 2!
 	// Microphone muted!
 	// Microphone unmuted!
+	// [Timer:] Call started at 11:00am
 	// Volume set to 11!
 	// Wasted!
 	// [Timer:] Call ended at 11:30am

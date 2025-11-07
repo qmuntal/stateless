@@ -1724,70 +1724,70 @@ func TestStateMachineWhenInSubstate_TriggerSuperStateTwiceToSameSubstate_DoesNot
 }
 
 func TestStateMachine_Fire_TransitionFromChildToParentFiresOnEntry(t *testing.T) {
-// Regression test for issue: OnEntry not firing when entering parent state from child state
-// This test verifies that when explicitly transitioning from a child state to its parent state,
-// the parent's OnEntry action should fire, allowing for logic like conditional redirection to children.
-sm := NewStateMachine(stateC)
-var parentEntryCount, child1EntryCount, child2EntryCount int
-condition := true
+	// Regression test for issue: OnEntry not firing when entering parent state from child state
+	// This test verifies that when explicitly transitioning from a child state to its parent state,
+	// the parent's OnEntry action should fire, allowing for logic like conditional redirection to children.
+	sm := NewStateMachine(stateC)
+	var parentEntryCount, child1EntryCount, child2EntryCount int
+	condition := true
 
-// Configure parent state with OnEntry that redirects to children based on condition
-sm.Configure(stateA).
-OnEntry(func(_ context.Context, _ ...any) error {
-parentEntryCount++
-// Redirect to appropriate child based on condition
-if condition {
-sm.Fire(triggerX)
-} else {
-sm.Fire(triggerY)
-}
-return nil
-}).
-Permit(triggerX, stateB).
-Permit(triggerY, stateD)
+	// Configure parent state with OnEntry that redirects to children based on condition
+	sm.Configure(stateA).
+		OnEntry(func(_ context.Context, _ ...any) error {
+			parentEntryCount++
+			// Redirect to appropriate child based on condition
+			if condition {
+				sm.Fire(triggerX)
+			} else {
+				sm.Fire(triggerY)
+			}
+			return nil
+		}).
+		Permit(triggerX, stateB).
+		Permit(triggerY, stateD)
 
-// Configure child states
-sm.Configure(stateB).
-SubstateOf(stateA).
-Permit(triggerZ, stateA).
-OnEntry(func(_ context.Context, _ ...any) error {
-child1EntryCount++
-return nil
-})
+	// Configure child states
+	sm.Configure(stateB).
+		SubstateOf(stateA).
+		Permit(triggerZ, stateA).
+		OnEntry(func(_ context.Context, _ ...any) error {
+			child1EntryCount++
+			return nil
+		})
 
-sm.Configure(stateD).
-SubstateOf(stateA).
-Permit(triggerZ, stateA).
-OnEntry(func(_ context.Context, _ ...any) error {
-child2EntryCount++
-return nil
-})
+	sm.Configure(stateD).
+		SubstateOf(stateA).
+		Permit(triggerZ, stateA).
+		OnEntry(func(_ context.Context, _ ...any) error {
+			child2EntryCount++
+			return nil
+		})
 
-sm.Configure(stateC).
-Permit(triggerX, stateA)
+	sm.Configure(stateC).
+		Permit(triggerX, stateA)
 
-// First transition: C -> A, should enter A and redirect to B
-sm.Fire(triggerX)
-if parentEntryCount != 1 {
-t.Errorf("parent entry count should be 1 after first transition, got %d", parentEntryCount)
-}
-if child1EntryCount != 1 {
-t.Errorf("child1 entry count should be 1 after first transition, got %d", child1EntryCount)
-}
-if sm.MustState() != stateB {
-t.Errorf("state should be B after first transition, got %v", sm.MustState())
-}
+	// First transition: C -> A, should enter A and redirect to B
+	sm.Fire(triggerX)
+	if parentEntryCount != 1 {
+		t.Errorf("parent entry count should be 1 after first transition, got %d", parentEntryCount)
+	}
+	if child1EntryCount != 1 {
+		t.Errorf("child1 entry count should be 1 after first transition, got %d", child1EntryCount)
+	}
+	if sm.MustState() != stateB {
+		t.Errorf("state should be B after first transition, got %v", sm.MustState())
+	}
 
-// Second transition: B -> A (child to parent), should enter A and redirect to D
-condition = false
-sm.Fire(triggerZ)
-if parentEntryCount != 2 {
-t.Errorf("parent entry count should be 2 after second transition, got %d", parentEntryCount)
-}
-if child2EntryCount != 1 {
-t.Errorf("child2 entry count should be 1 after second transition, got %d", child2EntryCount)
-}
-if sm.MustState() != stateD {
-t.Errorf("state should be D after second transition, got %v", sm.MustState())
-}
+	// Second transition: B -> A (child to parent), should enter A and redirect to D
+	condition = false
+	sm.Fire(triggerZ)
+	if parentEntryCount != 2 {
+		t.Errorf("parent entry count should be 2 after second transition, got %d", parentEntryCount)
+	}
+	if child2EntryCount != 1 {
+		t.Errorf("child2 entry count should be 1 after second transition, got %d", child2EntryCount)
+	}
+	if sm.MustState() != stateD {
+		t.Errorf("state should be D after second transition, got %v", sm.MustState())
+	}
 }

@@ -117,7 +117,8 @@ func (sr *stateRepresentation) Enter(ctx context.Context, transition Transition,
 	if transition.IsReentry() {
 		return sr.executeEntryActions(ctx, transition, args...)
 	}
-	if sr.IncludeState(transition.Source) {
+	// Only skip entry if the source is within our hierarchy AND we're not the explicit destination
+	if sr.IncludeState(transition.Source) && transition.Destination != sr.State {
 		return nil
 	}
 	if sr.Superstate != nil && !transition.isInitial {

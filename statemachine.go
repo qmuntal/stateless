@@ -148,6 +148,12 @@ func (sm *StateMachine) State(ctx context.Context) (State, error) {
 	return state, err
 }
 
+// StateWithArgs returns the current state along with any arguments that were passed to the state mutator.
+// This is useful when using NewStateMachineWithExternalStorageAndArgs to retain additional state information.
+func (sm *StateMachine) StateWithArgs(ctx context.Context) (State, []any, error) {
+	return sm.stateAccessor(ctx)
+}
+
 // MustState returns the current state without the error.
 // It is safe to use this method when used together with NewStateMachine
 // or when using NewStateMachineWithExternalStorage / NewStateMachineWithExternalStorageAndArgs with a state accessor that

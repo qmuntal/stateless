@@ -26,8 +26,8 @@ func TestTransition_IsReentry(t *testing.T) {
 		t    *Transition
 		want bool
 	}{
-		{"TransitionIsNotChange", &Transition{"1", "1", "0", false}, true},
-		{"TransitionIsChange", &Transition{"1", "2", "0", false}, false},
+		{"TransitionIsNotChange", &Transition{"1", "1", "0", nil, false}, true},
+		{"TransitionIsChange", &Transition{"1", "2", "0", nil, false}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

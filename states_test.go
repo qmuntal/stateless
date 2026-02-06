@@ -218,15 +218,15 @@ func Test_stateRepresentation_Enter_EnteringActionsExecuted_Error(t *testing.T) 
 func Test_stateRepresentation_Enter_LeavingActionsNotExecuted(t *testing.T) {
 	sr := newstateRepresentation(stateA)
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
+	var actualTransition *Transition
 	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
 		Action: func(_ context.Context, _ ...any) error {
-			actualTransition = transition
+			actualTransition = &transition
 			return nil
 		},
 	})
 	sr.Enter(context.Background(), transition)
-	if actualTransition != (Transition{}) {
+	if actualTransition != nil {
 		t.Error("expected transition to not be passed to action")
 	}
 }
@@ -329,15 +329,15 @@ func Test_stateRepresentation_Enter_Substate_SuperstateEntryActionsExecuteBefore
 func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
 	sr := newstateRepresentation(stateB)
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
+	var actualTransition *Transition
 	sr.EntryActions = append(sr.EntryActions, actionBehaviour{
 		Action: func(_ context.Context, _ ...any) error {
-			actualTransition = transition
+			actualTransition = &transition
 			return nil
 		},
 	})
 	sr.Exit(context.Background(), transition)
-	if actualTransition != (Transition{}) {
+	if actualTransition != nil {
 		t.Error("expected transition to not be passed to action")
 	}
 }
@@ -345,17 +345,17 @@ func Test_stateRepresentation_Exit_EnteringActionsNotExecuted(t *testing.T) {
 func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 	sr := newstateRepresentation(stateA)
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
+	var actualTransition *Transition
 	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
 		Action: func(_ context.Context, _ ...any) error {
-			actualTransition = transition
+			actualTransition = &transition
 			return nil
 		},
 	})
 	if err := sr.Exit(context.Background(), transition); err != nil {
 		t.Error(err)
 	}
-	if actualTransition != transition {
+	if actualTransition != &transition {
 		t.Error("expected transition to be passed to leaving actions")
 	}
 }
@@ -363,7 +363,7 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted(t *testing.T) {
 func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
 	sr := newstateRepresentation(stateA)
 	transition := Transition{Source: stateA, Destination: stateB, Trigger: triggerX}
-	var actualTransition Transition
+	var actualTransition *Transition
 	sr.ExitActions = append(sr.ExitActions, actionBehaviour{
 		Action: func(_ context.Context, _ ...any) error {
 			return errors.New("")
@@ -372,7 +372,7 @@ func Test_stateRepresentation_Exit_LeavingActionsExecuted_Error(t *testing.T) {
 	if err := sr.Exit(context.Background(), transition); err == nil {
 		t.Error("expected error")
 	}
-	if actualTransition == transition {
+	if actualTransition == &transition {
 		t.Error("expected transition to not be passed to leaving actions")
 	}
 }

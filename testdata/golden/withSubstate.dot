@@ -1,7 +1,13 @@
 digraph {
 	compound=true;
-	node [shape=Mrecord];
+	node [shape=box, style=rounded];
 	rankdir="LR";
+
+
+	legend [shape=none, label="🚫 Ignored\l"];
+
+	init [label="", shape=point];
+	init -> B;
 
 	A [label="A"];
 	C [label="C"];
@@ -12,8 +18,6 @@ digraph {
 	}
 	A -> B [label="Z"];
 	B -> A [label="X"];
-	C -> C [label="X"];
+	C -> C [label="🚫 X"];
 	C -> A [label="Y"];
-	init [label="", shape=point];
-	init -> B
 }

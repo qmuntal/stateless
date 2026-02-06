@@ -1,7 +1,10 @@
 digraph {
 	compound=true;
-	node [shape=Mrecord];
+	node [shape=box, style=rounded];
 	rankdir="LR";
+
+	init [label="", shape=point];
+	init -> A;
 
 	A [label="A"];
 	B [label="B"];
@@ -20,6 +23,4 @@ digraph {
 	"cluster_B-init" -> C [label=""];
 	"cluster_C-init" -> D [label=""];
 	A -> B [label="X"];
-	init [label="", shape=point];
-	init -> A
 }

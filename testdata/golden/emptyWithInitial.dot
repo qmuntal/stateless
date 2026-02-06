@@ -1,8 +1,9 @@
 digraph {
 	compound=true;
-	node [shape=Mrecord];
+	node [shape=box, style=rounded];
 	rankdir="LR";
 
 	init [label="", shape=point];
-	init -> A
+	init -> A;
+
 }

@@ -25,7 +25,7 @@ digraph {
 	}
 	"cluster_ų-init" -> ㇴ [label=""];
 	"cluster_ㇴ-init" -> ꬠ [label=""];
-	Ĕ -> ų [label="◵ [œ]"];
+	Ĕ -> ų [label="◵ [œ]\l"];
 	init [label="", shape=point];
 	init -> Ĕ
 }

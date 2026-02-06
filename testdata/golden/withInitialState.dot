@@ -19,7 +19,7 @@ digraph {
 	}
 	"cluster_B-init" -> C [label=""];
 	"cluster_C-init" -> D [label=""];
-	A -> B [label="X"];
+	A -> B [label="X\l"];
 	init [label="", shape=point];
 	init -> A
 }

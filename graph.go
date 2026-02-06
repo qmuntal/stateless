@@ -77,7 +77,7 @@ func (g *graph) writeLegend(used usedTransitionTypes, sb *strings.Builder) {
 	}
 	// Legend at bottom right (only if there are special transitions)
 	if len(legendItems) > 0 {
-		sb.WriteString(fmt.Sprintf("\n\tlegend [shape=none, label=\"%s\"];\n", strings.Join(legendItems, "\\l")))
+		sb.WriteString(fmt.Sprintf("\n\tlegend [shape=none, label=\"%s\\l\"];\n", strings.Join(legendItems, "\\l")))
 		sb.WriteString("\t{ rank=sink; legend; init -> legend [style=invis]; }\n")
 	}
 }
@@ -216,7 +216,7 @@ func (g *graph) toTransitionsLabel(t transitionLabel) string {
 			if i != len(group.transitions)-1 {
 				sb.WriteString("\\l")
 			} else {
-				sb.WriteRune('"')
+				sb.WriteString("\\l\"")
 			}
 		}
 	}

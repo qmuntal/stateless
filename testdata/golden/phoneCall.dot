@@ -11,16 +11,16 @@ digraph {
 	}
 	OffHook [label="OffHook"];
 	Ringing [label="Ringing"];
-	Connected -> OffHook [label="LeftMessage"];
-	Connected -> Connected [label="🔒 MuteMicrophone\l🔒 SetVolume\l🔒 UnmuteMicrophone"];
-	Connected -> OnHold [label="PlacedOnHold"];
-	OffHook -> Ringing [label="CallDialed / func1"];
-	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall"];
-	OnHold -> Connected [label="TakenOffHold"];
-	Ringing -> Connected [label="CallConnected"];
+	Connected -> OffHook [label="LeftMessage\l"];
+	Connected -> Connected [label="🔒 MuteMicrophone\l🔒 SetVolume\l🔒 UnmuteMicrophone\l"];
+	Connected -> OnHold [label="PlacedOnHold\l"];
+	OffHook -> Ringing [label="CallDialed / func1\l"];
+	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall\l"];
+	OnHold -> Connected [label="TakenOffHold\l"];
+	Ringing -> Connected [label="CallConnected\l"];
 	init [label="", shape=point];
 	init -> OffHook
 
-	legend [shape=none, label="🔒 Internal"];
+	legend [shape=none, label="🔒 Internal\l"];
 	{ rank=sink; legend; init -> legend [style=invis]; }
 }

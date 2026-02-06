@@ -3,6 +3,12 @@ digraph {
 	node [shape=box, style=rounded];
 	rankdir="LR";
 
+
+	legend [shape=none, label="🔒 Internal\l"];
+
+	init [label="", shape=point];
+	init -> OffHook;
+
 	Connected [label="Connected\n----------\nentry / startCallTimer\lexit / func2\l"];
 	subgraph cluster_Connected {
 		label="Substates of\nConnected";
@@ -11,16 +17,11 @@ digraph {
 	}
 	OffHook [label="OffHook"];
 	Ringing [label="Ringing"];
-	Connected -> OffHook [label="LeftMessage\l"];
+	Connected -> OffHook [label="LeftMessage"];
 	Connected -> Connected [label="🔒 MuteMicrophone\l🔒 SetVolume\l🔒 UnmuteMicrophone\l"];
-	Connected -> OnHold [label="PlacedOnHold\l"];
-	OffHook -> Ringing [label="CallDialed / func1\l"];
-	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall\l"];
-	OnHold -> Connected [label="TakenOffHold\l"];
-	Ringing -> Connected [label="CallConnected\l"];
-	init [label="", shape=point];
-	init -> OffHook
-
-	legend [shape=none, label="🔒 Internal\l"];
-	{ rank=sink; legend; init -> legend [style=invis]; }
+	Connected -> OnHold [label="PlacedOnHold"];
+	OffHook -> Ringing [label="CallDialed / func1"];
+	OnHold -> PhoneDestroyed [label="PhoneHurledAgainstWall"];
+	OnHold -> Connected [label="TakenOffHold"];
+	Ringing -> Connected [label="CallConnected"];
 }

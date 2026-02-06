@@ -4,5 +4,6 @@ digraph {
 	rankdir="LR";
 
 	init [label="", shape=point];
-	init -> A
+	init -> A;
+
 }

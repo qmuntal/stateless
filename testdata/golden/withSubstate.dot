@@ -3,6 +3,12 @@ digraph {
 	node [shape=box, style=rounded];
 	rankdir="LR";
 
+
+	legend [shape=none, label="🚫 Ignored\l"];
+
+	init [label="", shape=point];
+	init -> B;
+
 	A [label="A"];
 	C [label="C"];
 	subgraph cluster_C {
@@ -10,13 +16,8 @@ digraph {
 		style="dashed";
 		B [label="B"];
 	}
-	A -> B [label="Z\l"];
-	B -> A [label="X\l"];
-	C -> C [label="🚫 X\l"];
-	C -> A [label="Y\l"];
-	init [label="", shape=point];
-	init -> B
-
-	legend [shape=none, label="🚫 Ignored\l"];
-	{ rank=sink; legend; init -> legend [style=invis]; }
+	A -> B [label="Z"];
+	B -> A [label="X"];
+	C -> C [label="🚫 X"];
+	C -> A [label="Y"];
 }

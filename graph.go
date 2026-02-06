@@ -36,6 +36,18 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 		return strings.Compare(fmt.Sprint(a.State), fmt.Sprint(b.State))
 	})
 
+	var used usedTransitionTypes
+	for _, sr := range stateList {
+		g.collectTransitionTypes(sr, &used)
+	}
+	g.writeLegend(used, &sb)
+
+	initialState, err := sm.State(context.Background())
+	if err == nil {
+		sb.WriteString("\tinit [label=\"\", shape=point];\n")
+		sb.WriteString(fmt.Sprintf("\tinit -> %s;\n\n", str(initialState, true)))
+	}
+
 	for _, sr := range stateList {
 		if sr.Superstate == nil {
 			g.formatOneState(&sb, sr, 1)
@@ -50,16 +62,9 @@ func (g *graph) formatStateMachine(sm *StateMachine) string {
 			}
 		}
 	}
-	var used usedTransitionTypes
 	for _, sr := range stateList {
-		g.formatAllStateTransitions(&sb, sm, sr, &used)
+		g.formatAllStateTransitions(&sb, sm, sr)
 	}
-	initialState, err := sm.State(context.Background())
-	if err == nil {
-		sb.WriteString("\tinit [label=\"\", shape=point];\n")
-		sb.WriteString(fmt.Sprintf("\tinit -> %s\n", str(initialState, true)))
-	}
-	g.writeLegend(used, &sb)
 	sb.WriteString("}\n")
 	return sb.String()
 }
@@ -77,8 +82,7 @@ func (g *graph) writeLegend(used usedTransitionTypes, sb *strings.Builder) {
 	}
 	// Legend at bottom right (only if there are special transitions)
 	if len(legendItems) > 0 {
-		sb.WriteString(fmt.Sprintf("\n\tlegend [shape=none, label=\"%s\\l\"];\n", strings.Join(legendItems, "\\l")))
-		sb.WriteString("\t{ rank=sink; legend; init -> legend [style=invis]; }\n")
+		sb.WriteString(fmt.Sprintf("\n\tlegend [shape=none, label=\"%s\\l\"];\n\n", strings.Join(legendItems, "\\l")))
 	}
 }
 
@@ -136,7 +140,22 @@ func (g *graph) getEntryActions(ab []actionBehaviour, t Trigger) []string {
 	return actions
 }
 
-func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine, sr *stateRepresentation, used *usedTransitionTypes) {
+func (g *graph) collectTransitionTypes(sr *stateRepresentation, used *usedTransitionTypes) {
+	for _, triggers := range sr.TriggerBehaviours {
+		for _, trigger := range triggers {
+			switch trigger.(type) {
+			case *ignoredTriggerBehaviour:
+				used.hasIgnored = true
+			case *reentryTriggerBehaviour:
+				used.hasReentry = true
+			case *internalTriggerBehaviour:
+				used.hasInternal = true
+			}
+		}
+	}
+}
+
+func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine, sr *stateRepresentation) {
 	triggerList := make([]triggerBehaviour, 0, len(sr.TriggerBehaviours))
 	for _, triggers := range sr.TriggerBehaviours {
 		triggerList = append(triggerList, triggers...)
@@ -163,16 +182,13 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 	for _, trigger := range triggerList {
 		switch t := trigger.(type) {
 		case *ignoredTriggerBehaviour:
-			used.hasIgnored = true
 			ln := getLine(line{sr.State, sr.State})
 			ln.ignored = append(ln.ignored, g.formatOneTransition(t.Trigger, nil, t.Guard))
 		case *reentryTriggerBehaviour:
-			used.hasReentry = true
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 			ln := getLine(line{sr.State, t.Destination})
 			ln.reentry = append(ln.reentry, g.formatOneTransition(t.Trigger, actions, t.Guard))
 		case *internalTriggerBehaviour:
-			used.hasInternal = true
 			actions := g.getEntryActions(sr.EntryActions, t.Trigger)
 			ln := getLine(line{sr.State, sr.State})
 			ln.internal = append(ln.internal, g.formatOneTransition(t.Trigger, actions, t.Guard))
@@ -198,6 +214,8 @@ func (g *graph) formatAllStateTransitions(sb *strings.Builder, sm *StateMachine,
 
 func (g *graph) toTransitionsLabel(t transitionLabel) string {
 	var sb strings.Builder
+	sb.WriteRune('"')
+	count := 0
 	for _, group := range []struct {
 		transitions []string
 		prefix      string
@@ -207,19 +225,19 @@ func (g *graph) toTransitionsLabel(t transitionLabel) string {
 		{t.internal, "🔒 "},
 		{t.ignored, "🚫 "},
 	} {
-		for i, tr := range group.transitions {
-			if i == 0 {
-				sb.WriteRune('"')
+		for _, tr := range group.transitions {
+			if count > 0 {
+				sb.WriteString("\\l")
 			}
+			count++
 			sb.WriteString(group.prefix)
 			sb.WriteString(tr)
-			if i != len(group.transitions)-1 {
-				sb.WriteString("\\l")
-			} else {
-				sb.WriteString("\\l\"")
-			}
 		}
 	}
+	if count > 1 {
+		sb.WriteString("\\l")
+	}
+	sb.WriteRune('"')
 	return sb.String()
 }
 

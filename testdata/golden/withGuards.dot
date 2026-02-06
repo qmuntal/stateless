@@ -3,14 +3,15 @@ digraph {
 	node [shape=box, style=rounded];
 	rankdir="LR";
 
+	init [label="", shape=point];
+	init -> B;
+
 	A [label="A"];
 	subgraph cluster_A {
 		label="Substates of\nA";
 		style="dashed";
 		B [label="B"];
 	}
-	A -> D [label="X [func1]\l"];
-	B -> C [label="X [func2]\l"];
-	init [label="", shape=point];
-	init -> B
+	A -> D [label="X [func1]"];
+	B -> C [label="X [func2]"];
 }

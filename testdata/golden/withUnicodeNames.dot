@@ -3,6 +3,9 @@ digraph {
 	node [shape=box, style=rounded];
 	rankdir="LR";
 
+	init [label="", shape=point];
+	init -> Ĕ;
+
 	Ĕ [label="Ĕ"];
 	ų [label="ų"];
 	subgraph cluster_ų {
@@ -25,7 +28,5 @@ digraph {
 	}
 	"cluster_ų-init" -> ㇴ [label=""];
 	"cluster_ㇴ-init" -> ꬠ [label=""];
-	Ĕ -> ų [label="◵ [œ]\l"];
-	init [label="", shape=point];
-	init -> Ĕ
+	Ĕ -> ų [label="◵ [œ]"];
 }

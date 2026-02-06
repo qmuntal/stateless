@@ -221,7 +221,7 @@ This can then be rendered by tools that support the DOT graph language, such as 
 
 This is the complete Phone Call graph as builded in `example_test.go`.
 
-![Phone Call graph](assets/phone-graph.png?raw=true "Phone Call complete DOT")
+![Phone Call graph](assets/phone-graph.svg?raw=true "Phone Call complete DOT")
 
 ## Project Goals
 

@@ -1,6 +1,6 @@
 digraph {
 	compound=true;
-	node [shape=Mrecord];
+	node [shape=box, style=rounded];
 	rankdir="LR";
 
 	Ĕ [label="Ĕ"];

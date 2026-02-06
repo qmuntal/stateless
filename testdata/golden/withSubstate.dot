@@ -1,6 +1,6 @@
 digraph {
 	compound=true;
-	node [shape=Mrecord];
+	node [shape=box, style=rounded];
 	rankdir="LR";
 
 	A [label="A"];
@@ -12,8 +12,11 @@ digraph {
 	}
 	A -> B [label="Z"];
 	B -> A [label="X"];
-	C -> C [label="X"];
+	C -> C [label="🚫 X"];
 	C -> A [label="Y"];
 	init [label="", shape=point];
 	init -> B
+
+	legend [shape=none, label="🚫 Ignored"];
+	{ rank=sink; legend; init -> legend [style=invis]; }
 }

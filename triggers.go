@@ -51,7 +51,7 @@ func newtransitionGuard(guards ...GuardFunc) transitionGuard {
 	return tg
 }
 
-// GuardConditionsMet is true if all of the guard functions return true.
+// GuardConditionMet is true if all of the guard functions return true.
 func (t transitionGuard) GuardConditionMet(ctx context.Context, args ...any) bool {
 	for _, guard := range t.Guards {
 		if !guard.Guard(ctx, args...) {

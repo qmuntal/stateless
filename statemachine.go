@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-// State is used to to represent the possible machine states.
+// State is used to represent the possible machine states.
 type State = any
 
 // Trigger is used to represent the triggers that cause state transitions.
@@ -17,9 +17,9 @@ type Trigger = any
 type FiringMode uint8
 
 const (
-	// FiringQueued mode shoud be used when run-to-completion is required. This is the recommended mode.
+	// FiringQueued mode should be used when run-to-completion is required. This is the recommended mode.
 	FiringQueued FiringMode = iota
-	// FiringImmediate should be used when the queing of trigger events are not needed.
+	// FiringImmediate should be used when the queuing of trigger events are not needed.
 	// Care must be taken when using this mode, as there is no run-to-completion guaranteed.
 	FiringImmediate
 )
@@ -59,7 +59,7 @@ func callEvents(events []TransitionFunc, ctx context.Context, transition Transit
 }
 
 // A StateMachine is an abstract machine that can be in exactly one of a finite number of states at any given time.
-// It is safe to use the StateMachine concurrently, but non of the callbacks (state manipulation, actions, events, ...) are guarded,
+// It is safe to use the StateMachine concurrently, but none of the callbacks (state manipulation, actions, events, ...) are guarded,
 // so it is up to the client to protect them against race conditions.
 type StateMachine struct {
 	stateConfig            map[State]*stateRepresentation

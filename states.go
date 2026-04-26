@@ -139,7 +139,7 @@ func (sr *stateRepresentation) Exit(ctx context.Context, transition Transition, 
 	if err == nil && !isReentry && sr.Superstate != nil {
 		// Check if destination is within the state list
 		if sr.IsIncludedInState(transition.Destination) {
-			// Destination state is within the list, exit first superstate only if it is NOT the the first
+			// Destination state is within the list, exit first superstate only if it is NOT the first
 			if sr.Superstate.state() != transition.Destination {
 				err = sr.Superstate.Exit(ctx, transition, args...)
 			}

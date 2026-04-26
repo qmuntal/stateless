@@ -174,7 +174,7 @@ func (sc *StateConfiguration) OnExitWith(trigger Trigger, action ActionFunc) *St
 // Substates inherit the allowed transitions of their superstate.
 // When entering directly into a substate from outside of the superstate,
 // entry actions for the superstate are executed.
-// Likewise when leaving from the substate to outside the supserstate,
+// Likewise when leaving from the substate to outside the superstate,
 // exit actions for the superstate will execute.
 func (sc *StateConfiguration) SubstateOf(superstate State) *StateConfiguration {
 	state := sc.sr.State
